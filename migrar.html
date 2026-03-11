@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Migración Ultra Rápida - Lo de Mari</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 flex items-center justify-center h-screen">
+  <div class="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
+    <h1 class="text-2xl font-bold text-emerald-600 mb-4">Migración Ultra Rápida</h1>
+    <input type="file" id="fileInput" accept=".json" class="mb-4 block w-full text-sm"/>
+    <button id="uploadBtn" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-4 rounded-lg">Subir Datos</button>
+    <p id="status" class="mt-4 font-bold text-lg text-slate-600"></p>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, doc, collection, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDlvIRrKVViSYnrf9yfAH_kvgbPcIjh0Uw",
+      authDomain: "lodemari-d7c74.firebaseapp.com",
+      projectId: "lodemari-d7c74",
+      storageBucket: "lodemari-d7c74.firebasestorage.app",
+      messagingSenderId: "888043847577",
+      appId: "1:888043847577:web:957a335474665030a35d08"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    let jsonData = null;
+
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (event) => { jsonData = JSON.parse(event.target.result); };
+      reader.readAsText(file);
+    });
+
+    document.getElementById('uploadBtn').addEventListener('click', async () => {
+      if(!jsonData) return alert("Cargá el archivo JSON primero.");
+      const status = document.getElementById('status');
+      const btn = document.getElementById('uploadBtn');
+      btn.disabled = true;
+      
+      try {
+        let batch = writeBatch(db);
+        let count = 0;
+        let totalCargados = 0;
+
+        const commitBatch = async () => {
+            if (count > 0) {
+                await batch.commit();
+                batch = writeBatch(db);
+                count = 0;
+                status.innerText = `Subiendo datos... (${totalCargados} procesados)`;
+            }
+        };
+
+        const agregarAlBatch = async (coleccion, id, data) => {
+            if (!data) return;
+            
+            // ESCUDO PROTECTOR DE IDs: Si el ID viene corrupto (vacío, arrays, objetos raros), 
+            // lo descartamos y dejamos que Firebase cree uno sano y seguro.
+            let safeId = null;
+            if (id !== undefined && id !== null) {
+                safeId = String(id).trim().replace(/\//g, '-');
+                if (safeId === '' || safeId === '[object Object]') safeId = null;
+            }
+
+            const ref = safeId ? doc(db, coleccion, safeId) : doc(collection(db, coleccion));
+            batch.set(ref, JSON.parse(JSON.stringify(data)));
+            count++;
+            totalCargados++;
+            
+            if (count >= 400) await commitBatch();
+        };
+
+        status.innerText = "Iniciando subida turbo..."; 
+        status.style.color = "orange";
+
+        const inventario = jsonData.loDeMari_inventory || [];
+        for (const item of inventario) await agregarAlBatch("inventario", item.id, item);
+
+        const deudores = jsonData.loDeMari_debtors || [];
+        for (const deudor of deudores) await agregarAlBatch("fiado", deudor.id, deudor);
+
+        const gastos = jsonData.loDeMari_allExpenses || {};
+        for (const fecha in gastos) await agregarAlBatch("gastos", fecha, { items: gastos[fecha] });
+
+        const ganancias = jsonData.loDeMari_dailyEarnings || {};
+        for (const fecha in ganancias) await agregarAlBatch("ganancias_diarias", fecha, ganancias[fecha]);
+
+        const historial = jsonData.loDeMari_salesHistory || [];
+        for (const venta of historial) await agregarAlBatch("historial_ventas", venta.id, venta);
+
+        await commitBatch();
+
+        status.innerText = `¡Éxito Total! 🎉 Se subieron ${totalCargados} registros a la nube.`; 
+        status.style.color = "green";
+        
+      } catch (error) {
+        status.innerText = "Error. Revisá la consola."; 
+        status.style.color = "red"; 
+        console.error("Fallo detallado:", error);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

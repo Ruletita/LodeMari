@@ -1,0 +1,1758 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lo de Mari - Sistema de Gestión</title>
+    <link rel="icon" type="image/png" href="https://i.ibb.co/8DrnvJkc/1000062202-removebg-preview.png">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } }
+            }
+        }
+    </script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; overscroll-behavior-y: contain; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type='number'] { -moz-appearance: textfield; }
+        
+        /* Estilos para el Punto de Venta */
+        .tab-activa { border-bottom: 4px solid rgb(16 185 129); color: rgb(16 185 129); font-weight: bold; background-color: white; }
+        html.dark .tab-activa { background-color: rgb(31 41 55); border-bottom-color: rgb(16 185 129); color: rgb(52 211 153); }
+        .tab-inactiva { border-bottom: 4px solid transparent; color: rgb(107 114 128); font-weight: bold; }
+        html.dark .tab-inactiva { color: rgb(156 163 175); }
+        
+        .metodo-activo { border: 2px solid rgb(16 185 129); background-color: rgb(209 250 229); color: rgb(6 78 59); font-weight: bold; }
+        html.dark .metodo-activo { background-color: rgba(4, 120, 87, 0.5); color: white; }
+        .metodo-inactivo { border: 1px solid rgb(209 213 219); color: rgb(75 85 99); font-weight: bold; }
+        html.dark .metodo-inactivo { border-color: rgb(75 85 99); color: rgb(156 163 175); }
+        
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+
+    <nav class="bg-emerald-600 shadow-md p-3 sticky top-0 z-40">
+        <div class="flex items-center justify-between w-full max-w-[1400px] mx-auto gap-4">
+            
+            <div class="flex-shrink-0 flex items-center">
+                <img src="https://i.ibb.co/8DrnvJkc/1000062202-removebg-preview.png" alt="Logo" class="h-10 md:h-12 w-auto drop-shadow-md">
+            </div>
+            
+            <div class="flex-1 flex justify-end overflow-x-auto no-scrollbar gap-1" id="nav-menu">
+                <button class="nav-btn px-4 py-2 text-white font-bold rounded-lg transition-colors" data-view="vender">Vender</button>
+                <button class="nav-btn px-4 py-2 text-white font-bold rounded-lg transition-colors" data-view="deudores">Deudores</button>
+                <button class="nav-btn px-4 py-2 text-white font-bold rounded-lg transition-colors" data-view="cierre">Cierre</button>
+                <button class="nav-btn px-4 py-2 text-white font-bold rounded-lg transition-colors" data-view="inventario">Inventario</button>
+                <button class="nav-btn px-4 py-2 text-white font-bold rounded-lg transition-colors" data-view="finanzas">Finanzas</button>
+                <button class="nav-btn px-4 py-2 text-white font-bold rounded-lg transition-colors" data-view="historial">Historial</button>
+                <button class="nav-btn px-4 py-2 text-white font-bold rounded-lg transition-colors" data-view="nube">Nube</button>
+            </div>
+
+            <button id="theme-toggle" class="flex-shrink-0 p-2 rounded-full bg-emerald-500 hover:bg-emerald-400 transition-colors shadow-inner">
+                <svg class="theme-toggle-light w-5 h-5 hidden text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                <svg class="theme-toggle-dark w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+            </button>
+        </div>
+    </nav>
+
+    <main id="main-content" class="container mx-auto p-4 md:p-6 max-w-[1400px]">
+
+        <div id="view-vender" class="view hidden">
+            
+            <div class="flex gap-2 border-b border-gray-200 dark:border-gray-700 mb-6 overflow-x-auto no-scrollbar" id="pos-tabs-container">
+                <button onclick="cambiarPestañaVenta(0)" id="tab-venta-0" class="px-6 py-3 rounded-t-lg tab-activa">Pedido 1</button>
+                <button onclick="cambiarPestañaVenta(1)" id="tab-venta-1" class="px-6 py-3 rounded-t-lg tab-inactiva hover:bg-gray-200 dark:hover:bg-gray-700">Pedido 2</button>
+                <button onclick="cambiarPestañaVenta(2)" id="tab-venta-2" class="px-6 py-3 rounded-t-lg tab-inactiva hover:bg-gray-200 dark:hover:bg-gray-700">Pedido 3</button>
+                <button onclick="cambiarPestañaVenta(3)" id="tab-venta-3" class="px-6 py-3 rounded-t-lg tab-inactiva hover:bg-gray-200 dark:hover:bg-gray-700">Pedido 4</button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                
+                <div class="lg:col-span-2 space-y-6">
+                    
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 space-y-4">
+                        <input type="search" id="pos-search" oninput="filtrarSelectPOS()" placeholder="🔍 Buscar por nombre o escanear código..." class="w-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 outline-none focus:border-emerald-500 text-lg">
+                        
+                        <select id="pos-product" onchange="ajustarCantidadPOS()" class="w-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 outline-none focus:border-emerald-500 text-lg">
+                            <option value="">Seleccione producto...</option>
+                        </select>
+                        
+                        <div class="flex gap-3">
+                            <input type="number" id="pos-qty" value="1" min="0.1" step="any" class="w-1/3 p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 outline-none text-center font-bold text-lg">
+                            <button onclick="agregarAlPOS()" class="w-2/3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-lg shadow-md transition-colors text-xl">Añadir al Carrito</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
+                        <h3 class="text-xl font-bold mb-4 text-orange-500">Ventas en Pausa (Pendientes)</h3>
+                        <ul id="pos-pendientes-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            </ul>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-1">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 flex flex-col h-full">
+                        
+                        <div class="p-5 border-b border-gray-200 dark:border-gray-700">
+                            <h3 class="text-xl font-bold text-emerald-600 dark:text-emerald-400">Carrito Actual</h3>
+                        </div>
+
+                        <ul id="pos-cart-list" class="flex-grow space-y-2 overflow-y-auto max-h-[40vh] min-h-[20rem] p-4">
+                            </ul>
+                        
+                        <div class="p-5 bg-gray-50 dark:bg-gray-700/50 rounded-b-xl border-t border-gray-200 dark:border-gray-700">
+                            
+                            <div class="flex justify-between items-center text-3xl font-black mb-6">
+                                <span class="text-gray-700 dark:text-gray-200">TOTAL:</span>
+                                <span id="pos-total-price" class="text-emerald-600">$0</span>
+                            </div>
+
+                            <label class="block text-sm font-bold text-gray-500 mb-2 text-center">Método de Pago</label>
+                            <div class="grid grid-cols-3 gap-2 mb-6">
+                                <button onclick="setMetodoPOS('Efectivo')" id="btn-metodo-Efectivo" class="metodo-activo py-3 rounded-lg transition-colors">Efectivo</button>
+                                <button onclick="setMetodoPOS('Transferencia')" id="btn-metodo-Transferencia" class="metodo-inactivo py-3 rounded-lg transition-colors">Transf.</button>
+                                <button onclick="setMetodoPOS('Posnet')" id="btn-metodo-Posnet" class="metodo-inactivo py-3 rounded-lg transition-colors">Posnet</button>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3 mb-6">
+                                <button onclick="abrirModalCobroPOS()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl text-xl shadow-md transition-colors">Cobrar</button>
+                                <button onclick="pausarVentaPOS()" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 rounded-xl text-xl shadow-md transition-colors">Pausar</button>
+                            </div>
+
+                            <div class="pt-4 border-t border-gray-200 dark:border-gray-600">
+                                <label class="block text-sm font-bold text-gray-500 mb-2">Enviar a Cuenta Corriente</label>
+                                <div class="flex gap-2">
+                                    <select id="pos-deudor-select" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 outline-none font-medium"></select>
+                                    <button onclick="enviarADeudorPOS()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-lg transition-colors">Enviar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div id="view-inventario" class="view hidden space-y-6">
+            <h2 class="text-3xl font-bold mb-6 text-emerald-600 dark:text-emerald-400">Gestión de Inventario</h2>
+            <form id="product-form" class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg mb-6 border border-gray-100 dark:border-gray-700">
+                <h3 class="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-200">Agregar / Editar Producto</h3>
+                <input type="hidden" id="product-id">
+                <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+                    <div class="md:col-span-2"><label class="block text-sm font-medium mb-1 text-gray-500">Nombre</label><input type="text" id="product-name" required class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"></div>
+                    <div><label class="block text-sm font-medium mb-1 text-gray-500">Marca</label><input type="text" id="product-brand" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 outline-none"></div>
+                    <div><label class="block text-sm font-medium mb-1 text-gray-500">Tamaño</label><input type="text" id="product-size" placeholder="Ej: 1L, 500g" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 outline-none"></div>
+                    <div><label class="block text-sm font-medium mb-1 text-gray-500">Precio ($)</label><input type="number" id="product-price" required min="0" step="0.01" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 outline-none"></div>
+                    <div><label class="block text-sm font-medium mb-1 text-gray-500">Tipo de Venta</label><select id="product-type" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 outline-none"><option value="Unidad">Unidad</option><option value="Kilo">Por Kilo</option></select></div>
+                </div>
+                
+                <div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <label class="block text-sm font-medium mb-2 text-gray-500">Lector de Códigos de Barras (Escanear y apretar Enter)</label>
+                    <div class="flex gap-4">
+                        <input type="text" id="barcode-input" placeholder="Esperando escaneo..." class="w-full md:w-1/2 p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 outline-none">
+                        <button type="button" id="barcode-add-btn" class="bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 font-bold px-6 rounded-lg transition-colors">Añadir Código</button>
+                    </div>
+                    <ul id="barcode-list" class="mt-3 space-y-1 bg-gray-50 dark:bg-gray-700/50 p-2 rounded-lg max-h-24 overflow-y-auto border border-gray-100 dark:border-gray-600">
+                        <li class="text-sm text-gray-400 italic">No hay códigos asignados a este producto.</li>
+                    </ul>
+                </div>
+
+                <div class="mt-6 pt-4 flex justify-end space-x-4 border-t border-gray-200 dark:border-gray-700">
+                    <button type="button" id="product-clear-btn" onclick="limpiarFormularioProducto()" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg transition-colors">Limpiar</button>
+                    <button type="submit" id="product-save-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-8 rounded-lg transition-colors">Guardar Producto</button>
+                </div>
+            </form>
+
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg mb-6 flex flex-col md:flex-row items-center gap-4 border border-gray-100 dark:border-gray-700">
+                <h3 class="text-lg font-bold text-gray-700 dark:text-gray-200 whitespace-nowrap">Aumento Masivo:</h3>
+                <select id="aumento-categoria" class="p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 outline-none flex-grow md:flex-grow-0"><option value="General">Almacén General</option></select>
+                <input type="number" id="aumento-porcentaje" placeholder="% de aumento" step="1" class="p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 w-full md:w-32 outline-none">
+                <button onclick="aplicarAumentoMasivo()" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-6 rounded-lg transition-colors w-full md:w-auto">Aplicar</button>
+            </div>
+
+            <div class="mb-6"><input type="search" id="inventory-search" oninput="renderizarInventario()" placeholder="🔍 Buscar producto por nombre o marca..." class="w-full p-4 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm text-lg"></div>
+            
+            <div class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
+                <h3 class="text-xl font-bold mb-4 text-emerald-600 border-b border-gray-200 dark:border-gray-700 pb-2">Almacén General</h3>
+                <ul id="inventory-list-general" class="inventory-list min-h-[50vh] max-h-[70vh] overflow-y-auto no-scrollbar space-y-2 p-2 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-100 dark:border-gray-700"></ul>
+            </div>
+        </div>
+
+        <div id="view-deudores" class="view hidden space-y-6">
+            <h2 class="text-3xl font-bold mb-6 text-emerald-600 dark:text-emerald-400">Control de Fiados</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 lg:col-span-1 h-fit">
+                    <h3 class="text-xl font-bold mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">Cartera de Clientes</h3>
+                    
+                    <form id="form-nuevo-deudor" class="mb-5">
+                        <label class="block text-sm font-bold text-gray-500 mb-1">Añadir Nuevo</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="nuevo-deudor-nombre" placeholder="Nombre completo..." required class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 outline-none focus:border-emerald-500">
+                            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 rounded-lg text-xl">+</button>
+                        </div>
+                    </form>
+                    
+                    <input type="search" id="search-deudores" oninput="renderizarListaDeudores()" placeholder="🔍 Buscar cliente..." class="w-full p-2 mb-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 outline-none focus:border-emerald-500">
+                    
+                    <ul id="lista-deudores-ui" class="space-y-2 max-h-96 overflow-y-auto no-scrollbar bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg border border-gray-100 dark:border-gray-700"></ul>
+                    
+                    <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 text-center">
+                        <p class="text-sm font-bold text-gray-500 uppercase tracking-widest">Capital en la calle</p>
+                        <p class="text-3xl font-black text-red-600 dark:text-red-500" id="total-general-deudores">$0</p>
+                    </div>
+                </div>
+                
+                <div class="lg:col-span-2">
+                    
+                    <div id="deudor-no-seleccionado" class="flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 h-full min-h-[300px] text-gray-400">
+                        <svg class="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        <p class="text-lg font-bold">Seleccioná un cliente de la lista para ver su cuenta.</p>
+                    </div>
+                    
+                    <div id="deudor-panel-activo" class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg hidden border border-gray-100 dark:border-gray-700 flex flex-col h-full">
+                        
+                        <div class="flex justify-between items-center mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">
+                            <h3 class="text-3xl font-black text-emerald-600 dark:text-emerald-400" id="deudor-nombre-titulo">Nombre Cliente</h3>
+                            <button onclick="borrarDeudorActual()" class="text-red-500 font-bold hover:underline text-sm">Eliminar Cliente</button>
+                        </div>
+                        
+                        <div class="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl mb-6 border border-emerald-100 dark:border-emerald-800">
+                            <h4 class="text-sm font-bold text-emerald-800 dark:text-emerald-400 mb-3 uppercase tracking-wider">Anotar Producto al Fiado</h4>
+                            <input type="search" id="deudor-search-prod" oninput="filtrarSelectParaDeudor()" placeholder="🔍 Buscar en inventario..." class="w-full p-2 mb-3 border border-emerald-200 dark:border-emerald-700 rounded-lg bg-white dark:bg-gray-800 outline-none focus:border-emerald-500">
+                            <div class="flex flex-col md:flex-row gap-3">
+                                <select id="deudor-select-prod" onchange="ajustarQtyDeudor()" class="flex-grow p-3 border border-emerald-200 dark:border-emerald-700 rounded-lg bg-white dark:bg-gray-800 outline-none font-medium"></select>
+                                <div class="flex gap-2 w-full md:w-auto">
+                                    <input type="number" id="deudor-qty-prod" value="1" min="0.1" step="any" class="w-24 p-3 border border-emerald-200 dark:border-emerald-700 rounded-lg bg-white dark:bg-gray-800 outline-none text-center font-bold">
+                                    <button onclick="anotarItemAlDeudor()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-lg shadow-md transition-colors w-full md:w-auto">Anotar</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="text-lg font-bold text-gray-700 dark:text-gray-200">Ticket Actual</h4>
+                            <input type="search" id="deudor-filtro-ticket" oninput="renderizarPanelDeudor()" placeholder="Filtrar ticket..." class="p-1 px-3 text-sm border border-gray-300 dark:border-gray-600 rounded-full bg-gray-50 dark:bg-gray-700 outline-none w-40 focus:border-emerald-500">
+                        </div>
+                        
+                        <ul id="deudor-items-list" class="flex-grow mb-6 max-h-64 overflow-y-auto no-scrollbar space-y-2 p-1 border-b border-gray-200 dark:border-gray-700 pb-4">
+                            </ul>
+                        
+                        <div class="mt-auto">
+                            <div id="deudor-saldo-favor-div" class="flex justify-between items-center text-lg font-bold mb-3 text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 p-3 rounded-lg hidden">
+                                <span>SALDO A FAVOR:</span>
+                                <div class="flex items-center gap-3">
+                                    <span id="deudor-saldo-favor-val" class="font-black text-xl">$0</span>
+                                    <button onclick="borrarSaldoAFavor()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm font-bold shadow">Borrar</button>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-between items-center text-3xl font-black mb-6 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+                                <span class="text-gray-700 dark:text-gray-200">TOTAL DEUDA:</span>
+                                <span id="deudor-total-deuda" class="text-red-600 dark:text-red-500">$0</span>
+                            </div>
+
+                            <div class="flex flex-col sm:flex-row gap-3">
+                                <button onclick="abrirModalPagoDeudor()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl text-xl shadow-md transition-colors">Registrar Pago</button>
+                                <button onclick="archivarDeudaHistorica()" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 rounded-xl text-xl shadow-md transition-colors">Archivar Histórico</button>
+                            </div>
+                            
+                            <div id="deudor-historicos-list" class="mt-6 pt-6 border-t-2 border-dashed border-gray-200 dark:border-gray-700 space-y-3">
+                                </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-cierre" class="view hidden space-y-6">
+            <h2 class="text-3xl font-bold mb-6 text-emerald-600 dark:text-emerald-400">Cierre de Caja Operativa</h2>
+            <div class="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg max-w-5xl mx-auto border border-gray-100 dark:border-gray-700">
+                <p class="text-gray-500 dark:text-gray-400 mb-8 text-center font-medium text-lg">Ventas cobradas hoy que aún no se asignaron a un turno. Al cerrar, el dinero pasa a las Finanzas del mes.</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800 p-5 rounded-xl flex flex-col h-full shadow-inner">
+                        <h4 class="font-black text-xl text-emerald-700 dark:text-emerald-400 mb-3 text-center border-b border-emerald-200 dark:border-emerald-700 pb-2">💵 Efectivo</h4>
+                        <ul id="cierre-list-efectivo" class="flex-grow max-h-48 overflow-y-auto space-y-2 text-sm font-medium mb-4 text-gray-700 dark:text-gray-300 pr-1"></ul>
+                        <div class="text-right font-black text-3xl text-emerald-700 dark:text-emerald-400 mt-auto pt-4 border-t border-emerald-200 dark:border-emerald-700" id="cierre-tot-efectivo">$0</div>
+                    </div>
+                    <div class="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 p-5 rounded-xl flex flex-col h-full shadow-inner">
+                        <h4 class="font-black text-xl text-blue-700 dark:text-blue-400 mb-3 text-center border-b border-blue-200 dark:border-blue-700 pb-2">📱 Transferencia</h4>
+                        <ul id="cierre-list-transferencia" class="flex-grow max-h-48 overflow-y-auto space-y-2 text-sm font-medium mb-4 text-gray-700 dark:text-gray-300 pr-1"></ul>
+                        <div class="text-right font-black text-3xl text-blue-700 dark:text-blue-400 mt-auto pt-4 border-t border-blue-200 dark:border-blue-700" id="cierre-tot-transf">$0</div>
+                    </div>
+                    <div class="bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800 p-5 rounded-xl flex flex-col h-full shadow-inner">
+                        <h4 class="font-black text-xl text-purple-700 dark:text-purple-400 mb-3 text-center border-b border-purple-200 dark:border-purple-700 pb-2">💳 Posnet</h4>
+                        <ul id="cierre-list-posnet" class="flex-grow max-h-32 overflow-y-auto space-y-2 text-sm font-medium mb-4 text-gray-700 dark:text-gray-300 pr-1"></ul>
+                        <div class="text-right mt-auto pt-4 border-t border-purple-200 dark:border-purple-700 space-y-1">
+                            <span class="text-gray-500 dark:text-gray-400 font-bold">Bruto: <span id="cierre-bruto-posnet">$0</span></span><br>
+                            <span class="text-red-500 font-bold">Dcto 4%: <span id="cierre-dcto-posnet">-$0</span></span><br>
+                            <strong class="text-3xl text-purple-700 dark:text-purple-400 font-black block mt-2" id="cierre-neto-posnet">$0</strong>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-100 dark:bg-gray-700/50 p-6 rounded-xl flex justify-between items-center mb-8 border border-gray-200 dark:border-gray-600 shadow-sm">
+                    <span class="font-black text-2xl text-gray-600 dark:text-gray-300 tracking-wide">TOTAL A CERRAR:</span>
+                    <span id="cierre-gran-total" class="text-5xl font-black text-emerald-600 dark:text-emerald-400">$0</span>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button onclick="ejecutarCierreCaja('manana')" class="bg-yellow-500 hover:bg-yellow-600 text-white font-black py-6 rounded-xl text-2xl shadow-lg transition-colors uppercase tracking-widest">Cerrar Mañana</button>
+                    <button onclick="ejecutarCierreCaja('tarde')" class="bg-orange-500 hover:bg-orange-600 text-white font-black py-6 rounded-xl text-2xl shadow-lg transition-colors uppercase tracking-widest">Cerrar Tarde</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-finanzas" class="view hidden space-y-6">
+            <h2 class="text-3xl font-bold mb-6 text-emerald-600 dark:text-emerald-400">Balance Financiero</h2>
+            
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg flex items-center justify-center space-x-6 border border-gray-100 dark:border-gray-700 max-w-sm mx-auto">
+                 <button onclick="navegarMesFinanzas(-1)" class="p-3 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 font-bold transition-colors shadow-sm">&lt;</button>
+                 <h3 id="finanzas-mes-label" class="text-2xl font-black text-gray-700 dark:text-gray-200 min-w-[160px] text-center uppercase tracking-widest">Mes</h3>
+                 <button onclick="navegarMesFinanzas(1)" class="p-3 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 font-bold transition-colors shadow-sm">&gt;</button>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
+                <h3 class="text-xl font-bold mb-4 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 pb-2">Anotar un Gasto</h3>
+                <form id="form-gastos" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end"> 
+                    <div class="md:col-span-1"><label class="block text-sm font-bold text-gray-500 mb-1">Fecha</label><input type="date" id="gasto-fecha" required class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 outline-none focus:border-red-500"></div>
+                    <div class="md:col-span-1"><label class="block text-sm font-bold text-gray-500 mb-1">Motivo / Proveedor</label><input type="text" id="gasto-desc" placeholder="Ej: Coca Cola, Luz..." required class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 outline-none focus:border-red-500"></div>
+                    <div class="md:col-span-1"><label class="block text-sm font-bold text-gray-500 mb-1">Monto ($)</label><input type="number" id="gasto-monto" required min="1" step="0.01" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 outline-none focus:border-red-500"></div>
+                    <button type="submit" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-lg transition-colors shadow-md text-lg">Restar Gasto</button>
+                </form>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div class="bg-emerald-50 dark:bg-emerald-900/20 p-5 rounded-xl text-center border border-emerald-100 dark:border-emerald-800 shadow-inner">
+                        <p class="text-emerald-700 dark:text-emerald-400 font-bold mb-2 uppercase tracking-wide text-sm">Ventas Cobradas</p>
+                        <p class="text-4xl font-black text-emerald-600" id="fin-tot-ventas">$0</p>
+                    </div>
+                    <div class="bg-blue-50 dark:bg-blue-900/20 p-5 rounded-xl text-center border border-blue-100 dark:border-blue-800 shadow-inner">
+                        <p class="text-blue-700 dark:text-blue-400 font-bold mb-2 uppercase tracking-wide text-sm">Fiados Cobrados</p>
+                        <p class="text-4xl font-black text-blue-600" id="fin-tot-fiados">$0</p>
+                    </div>
+                    <div class="bg-red-50 dark:bg-red-900/20 p-5 rounded-xl text-center border border-red-100 dark:border-red-800 shadow-inner">
+                        <p class="text-red-700 dark:text-red-400 font-bold mb-2 uppercase tracking-wide text-sm">Total Gastos</p>
+                        <p class="text-4xl font-black text-red-500" id="fin-tot-gastos">$0</p>
+                    </div>
+                </div>
+
+                <div class="bg-gray-800 dark:bg-gray-950 p-8 rounded-xl text-center mb-8 shadow-inner border border-gray-700">
+                    <p class="text-gray-400 uppercase font-black text-sm tracking-widest mb-2">Ganancia Neta del Mes</p>
+                    <p class="text-6xl font-black text-white drop-shadow-md" id="fin-tot-neto">$0</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 border-t border-gray-200 dark:border-gray-700 pt-8">
+                    
+                    <div>
+                        <h4 class="font-bold text-xl mb-4 text-emerald-600 dark:text-emerald-400 flex items-center gap-2 border-b border-gray-200 dark:border-gray-700 pb-2">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> 
+                            Ingresos Diarios (Cierres)
+                        </h4>
+                        <ul id="fin-list-ingresos" class="max-h-96 overflow-y-auto space-y-2 pr-2 font-medium text-gray-700 dark:text-gray-300"></ul>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-bold text-xl mb-4 text-red-500 flex items-center gap-2 border-b border-gray-200 dark:border-gray-700 pb-2">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path></svg> 
+                            Detalle de Gastos
+                        </h4>
+                        <ul id="fin-list-gastos" class="max-h-96 overflow-y-auto space-y-2 pr-2 font-medium text-gray-700 dark:text-gray-300"></ul>
+                    </div>
+
+                </div>
+            </div>
+            
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
+                <h3 class="text-xl font-bold mb-6 text-center text-gray-700 dark:text-gray-200">Gráfico de Balance Mensual</h3>
+                <div class="relative h-80 w-full"><canvas id="finanzas-grafico"></canvas></div>
+            </div>
+        </div>
+
+        <div id="view-historial" class="view hidden space-y-6">
+            <h2 class="text-3xl font-bold mb-6 text-emerald-600 dark:text-emerald-400">Historial de Operaciones</h2>
+            
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg flex items-center justify-center space-x-6 border border-gray-100 dark:border-gray-700 max-w-sm mx-auto">
+                 <button onclick="cambiarAnoHistorial(-1)" class="p-3 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 font-bold transition-colors shadow-sm">&lt;</button>
+                 <h3 id="historial-ano-label" class="text-2xl font-black text-gray-700 dark:text-gray-200 min-w-[120px] text-center uppercase tracking-widest">2026</h3>
+                 <button onclick="cambiarAnoHistorial(1)" class="p-3 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 font-bold transition-colors shadow-sm">&gt;</button>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg flex flex-wrap justify-center gap-3 border border-gray-100 dark:border-gray-700">
+                <button onclick="cambiarFiltroHistorial('today', this)" id="btn-hist-today" class="hist-btn px-8 py-3 rounded-lg bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-100 font-black transition-colors shadow-sm">Hoy</button>
+                <button onclick="cambiarFiltroHistorial('week', this)" id="btn-hist-week" class="hist-btn px-8 py-3 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 font-bold transition-colors">Esta Semana</button>
+                <button onclick="cambiarFiltroHistorial('month', this)" id="btn-hist-month" class="hist-btn px-8 py-3 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 font-bold transition-colors">Este Mes</button>
+                <button onclick="cambiarFiltroHistorial('year', this)" id="btn-hist-year" class="hist-btn px-8 py-3 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 font-bold transition-colors">Todo el Año</button>
+            </div>
+            
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
+                <div id="historial-lista" class="space-y-4 max-h-[70vh] overflow-y-auto no-scrollbar pr-2 pb-6">
+                    </div>
+            </div>
+        </div>
+
+        <div id="view-nube" class="view hidden">
+            <div class="bg-white dark:bg-gray-800 p-10 rounded-2xl shadow-2xl max-w-2xl mx-auto text-center border-t-8 border-emerald-500 mt-10 relative overflow-hidden">
+                <div class="absolute -right-10 -top-10 text-emerald-50 dark:text-gray-700/50">
+                    <svg class="w-64 h-64" fill="currentColor" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM19 18H6c-2.21 0-4-1.79-4-4 0-2.05 1.53-3.76 3.56-3.97l1.07-.11.5-.95C8.08 7.14 9.94 6 12 6c2.62 0 4.88 1.86 5.39 4.43l.3 1.5 1.53.11c1.56.1 2.78 1.41 2.78 2.96 0 1.65-1.35 3-3 3z"/></svg>
+                </div>
+                
+                <div class="relative z-10">
+                    <div class="bg-emerald-100 dark:bg-emerald-900/50 w-28 h-28 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner border-4 border-white dark:border-gray-800">
+                        <svg class="w-14 h-14 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    </div>
+                    <h3 class="text-4xl font-black text-gray-800 dark:text-white mb-4">Sincronización Activa</h3>
+                    <p class="text-gray-600 dark:text-gray-300 font-medium text-lg leading-relaxed mb-8">Tu sistema está conectado de manera ininterrumpida a Firebase. <strong class="text-emerald-600 dark:text-emerald-400">Todos tus datos están seguros y se guardan automáticamente.</strong></p>
+                    
+                    <div class="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-700 text-left space-y-3">
+                        <p class="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2"><svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> <strong>Inventario y Deudores:</strong> Sincronizados en vivo.</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2"><svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> <strong>Finanzas e Historial:</strong> Respaldados siempre.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <div id="modal-confirmacion" class="fixed inset-0 bg-gray-900 bg-opacity-80 flex items-center justify-center z-50 hidden backdrop-blur-sm transition-opacity">
+        <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl w-11/12 max-w-md transform scale-100 transition-transform border border-gray-100 dark:border-gray-700">
+            <h3 id="modal-conf-titulo" class="text-2xl font-black mb-4 text-gray-800 dark:text-white">Atención</h3>
+            <p id="modal-conf-mensaje" class="mb-8 text-gray-600 dark:text-gray-300 text-lg font-medium">¿Estás seguro de realizar esta acción?</p>
+            <div class="flex gap-4">
+                <button id="modal-conf-cancelar" class="w-1/2 py-4 rounded-xl bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-bold text-lg transition-colors">Cancelar</button>
+                <button id="modal-conf-aceptar" class="w-1/2 py-4 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-lg shadow-lg transition-colors">Sí, Confirmar</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="modal-cobrar-pos" class="fixed inset-0 bg-gray-900 bg-opacity-80 flex items-center justify-center z-50 hidden backdrop-blur-sm overflow-y-auto py-10">
+        <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl w-11/12 max-w-md my-auto border border-gray-100 dark:border-gray-700">
+            <h3 class="text-3xl font-black mb-6 text-center text-gray-800 dark:text-white">Registrar Cobro</h3>
+            
+            <div class="bg-emerald-50 dark:bg-emerald-900/20 p-5 rounded-xl mb-6 text-center border border-emerald-100 dark:border-emerald-800 shadow-inner">
+                <p class="text-sm font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-widest mb-2">Total de la Venta</p>
+                <p id="modal-cobro-total" class="text-5xl font-black text-emerald-600">$0</p>
+            </div>
+            
+            <div class="space-y-5 mb-8">
+                <div>
+                    <label class="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">💵 Efectivo</label>
+                    <div class="relative"><span class="absolute left-4 top-3.5 text-gray-400 font-bold text-xl">$</span><input type="number" id="inp-cobro-efectivo" class="w-full p-3 pl-10 text-2xl font-bold border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 transition-all text-gray-800 dark:text-white"></div>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">📱 Transferencia</label>
+                    <div class="relative"><span class="absolute left-4 top-3.5 text-gray-400 font-bold text-xl">$</span><input type="number" id="inp-cobro-transf" class="w-full p-3 pl-10 text-2xl font-bold border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 transition-all text-gray-800 dark:text-white"></div>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">💳 Posnet</label>
+                    <div class="relative"><span class="absolute left-4 top-3.5 text-gray-400 font-bold text-xl">$</span><input type="number" id="inp-cobro-posnet" class="w-full p-3 pl-10 text-2xl font-bold border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 transition-all text-gray-800 dark:text-white"></div>
+                </div>
+            </div>
+            
+            <div class="mb-8 text-center bg-gray-100 dark:bg-gray-700/50 p-5 rounded-xl border border-gray-200 dark:border-gray-600">
+                <p id="modal-cobro-lbl-resto" class="text-sm font-black text-gray-500 uppercase tracking-widest mb-2">Falta Cubrir</p>
+                <p id="modal-cobro-val-resto" class="text-4xl font-black text-red-500">$0</p>
+            </div>
+            
+            <div class="flex gap-3 mb-6">
+                <button id="split-cancel-btn" class="w-1/3 py-4 rounded-xl bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-white font-bold text-lg transition-colors">Volver</button>
+                <button id="btn-ejecutar-cobro" class="w-2/3 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xl shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Cobrar Venta</button>
+            </div>
+            
+            <div id="seccion-resto-fiado" class="border-t-2 border-dashed border-gray-200 dark:border-gray-700 pt-6 hidden">
+                <p class="text-sm font-bold text-gray-500 mb-3 text-center uppercase tracking-widest">Anotar el resto a un Fiado</p>
+                <select id="sel-resto-fiado" class="w-full p-4 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900 outline-none focus:border-purple-500 mb-4 font-bold text-lg text-gray-700 dark:text-white"></select>
+                <button id="btn-cobro-parcial-fiado" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-black text-lg py-4 rounded-xl shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Pagar y Anotar Resto</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-pago-deudor" class="fixed inset-0 bg-gray-900 bg-opacity-80 flex items-center justify-center z-50 hidden backdrop-blur-sm py-10">
+        <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl w-11/12 max-w-md border border-gray-100 dark:border-gray-700">
+            <h3 class="text-3xl font-black mb-6 text-center text-gray-800 dark:text-white">Abonar Fiado</h3>
+            
+            <div class="bg-red-50 dark:bg-red-900/20 p-5 rounded-xl mb-8 text-center border border-red-100 dark:border-red-800 shadow-inner">
+                <p class="text-sm font-black text-red-800 dark:text-red-400 uppercase tracking-widest mb-2">Deuda Total</p>
+                <p id="mdpay-total-deuda" class="text-5xl font-black text-red-600">$0</p>
+            </div>
+            
+            <div class="space-y-6 mb-8">
+                <div>
+                    <label class="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">El cliente entrega:</label>
+                    <div class="relative"><span class="absolute left-4 top-3.5 text-gray-400 font-bold text-xl">$</span><input type="number" id="mdpay-monto-input" class="w-full p-4 pl-10 text-2xl font-bold border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 transition-all text-gray-800 dark:text-white"></div>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wide">Forma de pago:</label>
+                    <div id="mdpay-metodos-container" class="flex gap-2 bg-gray-100 dark:bg-gray-900 p-2 rounded-xl border border-gray-200 dark:border-gray-700">
+                        <button onclick="setMetodoPayDeudor('Efectivo')" id="mdpay-btn-Efectivo" class="mdpay-btn flex-1 py-3 rounded-lg font-bold transition-all shadow-sm metodo-activo border-emerald-500">Efectivo</button>
+                        <button onclick="setMetodoPayDeudor('Transferencia')" id="mdpay-btn-Transferencia" class="mdpay-btn flex-1 py-3 rounded-lg font-bold transition-all metodo-inactivo">Transf.</button>
+                        <button onclick="setMetodoPayDeudor('Posnet')" id="mdpay-btn-Posnet" class="mdpay-btn flex-1 py-3 rounded-lg font-bold transition-all metodo-inactivo">Posnet</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex gap-3">
+                <button onclick="cerrarModalPagoDeudor()" class="w-1/3 py-4 rounded-xl bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 font-bold text-gray-700 dark:text-white text-lg transition-colors">Volver</button>
+                <button id="mdpay-btn-confirmar" class="w-2/3 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xl shadow-lg transition-colors">Registrar Pago</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-10 right-5 bg-emerald-600 text-white font-bold py-3 px-6 rounded-xl shadow-xl transform translate-x-[150%] transition-transform z-50"><span id="toast-msg"></span></div>
+
+    <script>
+        // --- VARIABLES DE ESTADO ---
+        let db;
+        let inv = [];
+        let deudores = [];
+        let deudorActivoData = null;
+        let posSales = [];
+        let posIndex = 0;
+        let posPendientes = [];
+        let finanzas = {}; // ganancias_diarias
+        let gastos = {}; 
+        let historial = [];
+        
+        let fechaFiltroFinanzas = new Date();
+        let chartFinanzas = null;
+        
+        let currentHistYear = new Date().getFullYear();
+        let histFiltro = 'today';
+        
+        let codigosBarrasTemp = [];
+        let metodoPagoDeudorModal = 'Efectivo';
+        let idDeudaGuardadaPagando = null;
+
+        const ID_FIADO_ACUMULADO = 'fiado-acumulado-id';
+
+        // --- UTILIDADES ---
+        const generarId = () => Math.random().toString(36).substr(2, 9);
+        const redondear = (num) => {
+            if(num <= 0) return 0;
+            const r = num % 100;
+            const b = Math.floor(num / 100) * 100;
+            return r === 0 ? num : (r <= 50 ? b + 50 : b + 100);
+        };
+        const formatear = (num) => num.toLocaleString('es-AR');
+        const getStrMes = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        const getStrDia = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+        // --- INICIALIZACIÓN ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Iniciar Firebase
+            if (!firebase.apps.length) {
+                firebase.initializeApp({
+                    apiKey: "AIzaSyDlvIRrKVViSYnrf9yfAH_kvgbPcIjh0Uw",
+                    authDomain: "lodemari-d7c74.firebaseapp.com",
+                    projectId: "lodemari-d7c74",
+                    storageBucket: "lodemari-d7c74.firebasestorage.app",
+                    messagingSenderId: "888043847577",
+                    appId: "1:888043847577:web:957a335474665030a35d08"
+                });
+            }
+            db = firebase.firestore();
+
+            // Cargar estado local de la Caja
+            const sPos = localStorage.getItem('ldm_pos_ventas');
+            posSales = sPos ? JSON.parse(sPos) : Array(4).fill(null).map(()=>({items:[], deudorId:'', metodo:'Efectivo'}));
+            posIndex = parseInt(localStorage.getItem('ldm_pos_idx') || '0');
+            const sPend = localStorage.getItem('ldm_pos_pendientes');
+            posPendientes = sPend ? JSON.parse(sPend) : [];
+
+            // UI Init
+            setupTheme();
+            document.querySelectorAll('#nav-menu .nav-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => cambiarVista(e.target.dataset.view));
+            });
+            document.getElementById('gasto-fecha').value = getStrDia(new Date());
+
+            // Lector Barras Init
+            setupLectorBarrasGlobal();
+
+            // Vigía de Cierre Automático (cada 1 minuto)
+            setInterval(checkAutoCierreCaja, 60000);
+
+            // Suscribirse a Firebase
+            iniciarFirebaseSync();
+
+            // Abrir vista guardada
+            const vistaGuardada = sessionStorage.getItem('ldm_vista_actual') || 'vender';
+            cambiarVista(vistaGuardada);
+        });
+
+        // --- NAVEGACIÓN Y TEMA ---
+        function cambiarVista(vistaId) {
+            sessionStorage.setItem('ldm_vista_actual', vistaId);
+            document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+            const obj = document.getElementById(`view-${vistaId}`);
+            if(obj) obj.classList.remove('hidden');
+
+            document.querySelectorAll('#nav-menu .nav-btn').forEach(btn => {
+                if(btn.dataset.view === vistaId) {
+                    btn.classList.add('bg-emerald-800', 'text-white');
+                    btn.classList.remove('hover:bg-emerald-700', 'text-gray-100');
+                } else {
+                    btn.classList.remove('bg-emerald-800', 'text-white');
+                    btn.classList.add('hover:bg-emerald-700', 'text-gray-100');
+                }
+            });
+
+            if(vistaId === 'vender') { actualizarSelectsInventario(); renderizarPOS(); renderizarPendientesPOS(); }
+            if(vistaId === 'inventario') renderizarInventario();
+            if(vistaId === 'deudores') { renderizarListaDeudores(); actualizarSelectsInventario(); if(deudorActivoData) renderizarPanelDeudor(); }
+            if(vistaId === 'finanzas') renderizarFinanzas();
+            if(vistaId === 'cierre') renderizarCierreCaja();
+            if(vistaId === 'historial') renderizarHistorial();
+        }
+
+        function setupTheme() {
+            const btn = document.getElementById('theme-toggle');
+            const html = document.documentElement;
+            const aplicar = () => {
+                const esDark = html.classList.contains('dark');
+                localStorage.setItem('ldm_tema', esDark ? 'd' : 'l');
+                btn.querySelector('.theme-toggle-light').classList.toggle('hidden', !esDark);
+                btn.querySelector('.theme-toggle-dark').classList.toggle('hidden', esDark);
+                if(chartFinanzas) {
+                    const c = esDark ? '#FFF' : '#333';
+                    chartFinanzas.options.plugins.legend.labels.color = c;
+                    chartFinanzas.options.scales.x.ticks.color = c;
+                    chartFinanzas.options.scales.y.ticks.color = c;
+                    chartFinanzas.update();
+                }
+            };
+            if(localStorage.getItem('ldm_tema') === 'd') html.classList.add('dark'); else html.classList.remove('dark');
+            aplicar();
+            btn.onclick = () => { html.classList.toggle('dark'); aplicar(); };
+        }
+
+        function mostrarNotificacion(msg, error = false) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').textContent = msg;
+            toast.className = `fixed bottom-10 right-5 text-white font-bold py-4 px-8 rounded-xl shadow-2xl transform transition-transform z-50 ${error ? 'bg-red-600' : 'bg-emerald-600'}`;
+            toast.classList.remove('translate-x-[150%]');
+            setTimeout(() => toast.classList.add('translate-x-[150%]'), 3000);
+        }
+
+        function preguntarConfirmacion(titulo, mensaje) {
+            const mod = document.getElementById('modal-confirmacion');
+            document.getElementById('modal-conf-titulo').textContent = titulo;
+            document.getElementById('modal-conf-mensaje').textContent = mensaje;
+            mod.classList.remove('hidden');
+            return new Promise((resolve) => {
+                document.getElementById('modal-conf-aceptar').onclick = () => { mod.classList.add('hidden'); resolve(true); };
+                document.getElementById('modal-conf-cancelar').onclick = () => { mod.classList.add('hidden'); resolve(false); };
+            });
+        }
+
+        // --- FIREBASE SYNC ---
+        function iniciarFirebaseSync() {
+            db.collection("inventario").onSnapshot(snap => {
+                inv = []; snap.forEach(d => inv.push({ id: d.id, ...d.data() }));
+                inv.sort((a,b) => a.name.localeCompare(b.name));
+                if(vistaActual() === 'inventario') renderizarInventario();
+                if(vistaActual() === 'vender' || vistaActual() === 'deudores') actualizarSelectsInventario();
+            });
+            db.collection("fiado").onSnapshot(snap => {
+                deudores = []; snap.forEach(d => deudores.push({ id: d.id, ...d.data() }));
+                deudores.sort((a,b) => a.name.localeCompare(b.name));
+                if(vistaActual() === 'deudores') renderizarListaDeudores();
+                actualizarSelectsDeudores();
+                if(deudorActivoData) {
+                    const act = deudores.find(x => x.id === deudorActivoData.id);
+                    if(act) { deudorActivoData = act; if(vistaActual() === 'deudores') renderizarPanelDeudor(); }
+                }
+            });
+            db.collection("gastos").onSnapshot(snap => {
+                gastos = {}; snap.forEach(d => gastos[d.id] = d.data().items || []);
+                if(vistaActual() === 'finanzas') renderizarFinanzas();
+            });
+            db.collection("ganancias_diarias").onSnapshot(snap => {
+                finanzas = {}; snap.forEach(d => finanzas[d.id] = d.data());
+                if(vistaActual() === 'cierre') renderizarCierreCaja();
+                if(vistaActual() === 'finanzas') renderizarFinanzas();
+                checkAutoCierreCaja(); 
+            });
+            db.collection("historial_ventas").orderBy("timestamp", "desc").limit(500).onSnapshot(snap => {
+                historial = []; snap.forEach(d => historial.push({ id: d.id, ...d.data() }));
+                if(vistaActual() === 'historial') renderizarHistorial();
+            });
+        }
+        function vistaActual() { return sessionStorage.getItem('ldm_vista_actual'); }
+
+        // ================= VIGÍA: AUTO-CIERRE DE CAJA =================
+        function checkAutoCierreCaja() {
+            const ahora = new Date();
+            if (ahora.getHours() >= 21) {
+                const hoy = getStrDia(ahora);
+                const pend = finanzas[hoy]?.pendingSales || [];
+                if (pend.length > 0) {
+                    ejecutarCierreCaja('tarde', true);
+                }
+            }
+        }
+
+        // ================= 1. MÓDULO: PUNTO DE VENTA (POS) =================
+        function guardarCajaLocal() {
+            localStorage.setItem('ldm_pos_ventas', JSON.stringify(posSales));
+            localStorage.setItem('ldm_pos_idx', posIndex);
+        }
+        function guardarPendientesLocal() {
+            localStorage.setItem('ldm_pos_pendientes', JSON.stringify(posPendientes));
+        }
+
+        function cambiarPestañaVenta(idx) {
+            posIndex = idx;
+            guardarCajaLocal();
+            renderizarPOS();
+        }
+
+        function setMetodoPOS(metodo) {
+            posSales[posIndex].metodo = metodo;
+            guardarCajaLocal();
+            renderizarPOS();
+        }
+
+        function actualizarSelectsInventario() {
+            const tPOS = (document.getElementById('pos-search')?.value || '').toLowerCase();
+            const tDEU = (document.getElementById('deudor-search-prod')?.value || '').toLowerCase();
+            const sPOS = document.getElementById('pos-product');
+            const sDEU = document.getElementById('deudor-select-prod');
+            
+            if(sPOS) {
+                const f = inv.filter(p => p.name.toLowerCase().includes(tPOS) || (p.barcodes && p.barcodes.some(b => b.includes(tPOS))));
+                const val = sPOS.value; sPOS.innerHTML = '<option value="">Elegir producto...</option>';
+                f.forEach(p => { const o = document.createElement('option'); o.value=p.id; o.dataset.t=p.type; o.textContent=`${p.name} - $${p.price}`; sPOS.appendChild(o); });
+                if(f.some(p => p.id === val)) sPOS.value = val; else if(f.length === 1 && tPOS) sPOS.value = f[0].id;
+                ajustarCantidadPOS();
+            }
+
+            if(sDEU) {
+                const f = inv.filter(p => p.name.toLowerCase().includes(tDEU) || (p.barcodes && p.barcodes.some(b => b.includes(tDEU))));
+                const val = sDEU.value; sDEU.innerHTML = '<option value="">Elegir producto...</option>';
+                f.forEach(p => { const o = document.createElement('option'); o.value=p.id; o.dataset.t=p.type; o.textContent=`${p.name} - $${p.price}`; sDEU.appendChild(o); });
+                if(f.some(p => p.id === val)) sDEU.value = val; else if(f.length === 1 && tDEU) sDEU.value = f[0].id;
+                ajustarQtyDeudor();
+            }
+        }
+        function filtrarSelectPOS() { actualizarSelectsInventario(); }
+        function ajustarCantidadPOS() {
+            const o = document.getElementById('pos-product').selectedOptions[0];
+            document.getElementById('pos-qty').value = (o && o.dataset.t === 'Kilo') ? 100 : 1;
+        }
+
+        function agregarAlPOS(prodIdForce = null, qtyForce = null) {
+            const pid = prodIdForce || document.getElementById('pos-product').value;
+            const q = qtyForce !== null ? qtyForce : parseFloat(document.getElementById('pos-qty').value);
+            if(!pid || isNaN(q) || q <= 0) return mostrarNotificacion("Datos inválidos", true);
+            
+            const p = inv.find(x => x.id === pid); if(!p) return;
+            const sale = posSales[posIndex];
+
+            if(p.type === 'Unidad') {
+                const qi = Math.floor(q);
+                const ex = sale.items.find(i => i.productId === p.id && i.type === 'Unidad');
+                if(ex) { ex.quantity += qi; ex.price = redondear(p.price * ex.quantity); }
+                else { sale.items.unshift({ id: generarId(), productId: p.id, name: p.name, quantity: qi, type: 'Unidad', price: redondear(p.price * qi) }); }
+            } else {
+                sale.items.unshift({ id: generarId(), productId: p.id, name: p.name, quantity: q, type: 'Peso', price: redondear((p.price / 1000) * q) });
+            }
+
+            guardarCajaLocal();
+            document.getElementById('pos-search').value = '';
+            actualizarSelectsInventario();
+            renderizarPOS();
+            document.getElementById('pos-search').focus();
+        }
+
+        function quitarDelPOS(id) {
+            posSales[posIndex].items = posSales[posIndex].items.filter(x => x.id !== id);
+            guardarCajaLocal();
+            renderizarPOS();
+        }
+
+        function renderizarPOS() {
+            const sale = posSales[posIndex];
+            if(!sale) return;
+
+            [0,1,2,3].forEach(i => {
+                const t = document.getElementById(`tab-venta-${i}`);
+                if(!t) return;
+                if(i === posIndex) { t.classList.add('tab-activa'); t.classList.remove('tab-inactiva', 'hover:bg-gray-200', 'dark:hover:bg-gray-700'); }
+                else { t.classList.remove('tab-activa'); t.classList.add('tab-inactiva', 'hover:bg-gray-200', 'dark:hover:bg-gray-700'); }
+            });
+
+            const list = document.getElementById('pos-cart-list'); list.innerHTML = '';
+            let total = 0;
+            sale.items.forEach(it => {
+                total += it.price;
+                list.innerHTML += `
+                    <li class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-100 dark:border-gray-600 mb-2 shadow-sm">
+                        <span class="font-bold text-gray-800 dark:text-gray-100 text-lg">${it.quantity}${it.type==='Unidad'?'x':'gr'} ${it.name}</span>
+                        <div class="flex items-center gap-4">
+                            <span class="font-black text-emerald-600 dark:text-emerald-400 text-xl">$${formatear(it.price)}</span>
+                            <button class="text-red-500 font-bold bg-red-100 dark:bg-red-900/30 px-4 py-2 rounded-lg hover:bg-red-200 transition-colors" onclick="quitarDelPOS('${it.id}')">X</button>
+                        </div>
+                    </li>
+                `;
+            });
+            if(!sale.items.length) list.innerHTML = '<li class="text-center text-gray-400 font-medium py-10 text-lg">El carrito está vacío. Escaneá o buscá un producto.</li>';
+            
+            document.getElementById('pos-total-price').textContent = `$${formatear(total)}`;
+            ['Efectivo','Transferencia','Posnet'].forEach(m => {
+                const btn = document.getElementById(`btn-metodo-${m}`);
+                if(!btn) return;
+                if(sale.metodo === m) { btn.classList.add('metodo-activo'); btn.classList.remove('metodo-inactivo'); }
+                else { btn.classList.remove('metodo-activo'); btn.classList.add('metodo-inactivo'); }
+            });
+
+            document.getElementById('pos-deudor-select').value = sale.deudorId || '';
+        }
+
+        function pausarVentaPOS() {
+            const sale = posSales[posIndex];
+            const tot = sale.items.reduce((s,i) => s + i.price, 0);
+            if(tot <= 0) return mostrarNotificacion("La venta está vacía", true);
+
+            posPendientes.unshift({
+                id: generarId(), items: [...sale.items], total: tot, timestamp: new Date().toISOString(), deudorId: sale.deudorId, metodo: sale.metodo
+            });
+            guardarPendientesLocal();
+
+            posSales[posIndex] = { items: [], deudorId: '', metodo: 'Efectivo' };
+            guardarCajaLocal();
+            renderizarPOS();
+            renderizarPendientesPOS();
+            mostrarNotificacion("Venta pausada");
+        }
+
+        function renderizarPendientesPOS() {
+            const list = document.getElementById('pos-pendientes-list'); if(!list) return;
+            list.innerHTML = '';
+            if(!posPendientes.length) return list.innerHTML = '<li class="text-gray-400 text-center py-6 font-medium col-span-full">No hay ventas pausadas.</li>';
+
+            posPendientes.forEach(p => {
+                list.innerHTML += `
+                    <li class="bg-gray-50 dark:bg-gray-700/50 p-5 rounded-xl border border-gray-200 dark:border-gray-600 shadow-sm">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="font-black text-2xl text-orange-500">$${formatear(p.total)}</span>
+                            <span class="text-sm font-bold text-gray-400 bg-white dark:bg-gray-800 px-2 py-1 rounded-lg">${new Date(p.timestamp).toLocaleTimeString().slice(0,5)}hs</span>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-300 truncate mb-5 font-medium">${p.items.map(i=>i.name).join(', ')}</p>
+                        <div class="flex gap-3">
+                            <button class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg shadow-md transition-colors" onclick="retomarPendientePOS('${p.id}')">Retomar</button>
+                            <button class="bg-red-500 hover:bg-red-600 text-white font-bold px-4 rounded-lg shadow-md transition-colors" onclick="borrarPendientePOS('${p.id}')">X</button>
+                        </div>
+                    </li>
+                `;
+            });
+        }
+
+        function retomarPendientePOS(id) {
+            const i = posPendientes.findIndex(x => x.id === id); if(i === -1) return;
+            if(posSales[posIndex].items.length > 0) return mostrarNotificacion("Vaciá el carrito actual primero", true);
+            posSales[posIndex] = posPendientes[i];
+            posPendientes.splice(i, 1);
+            guardarPendientesLocal(); guardarCajaLocal(); renderizarPOS(); renderizarPendientesPOS();
+        }
+
+        async function borrarPendientePOS(id) {
+            if(await preguntarConfirmacion("Borrar", "¿Querés eliminar esta venta pausada para siempre?")) {
+                posPendientes = posPendientes.filter(x => x.id !== id);
+                guardarPendientesLocal(); renderizarPendientesPOS();
+            }
+        }
+
+        // --- LÓGICA DE COBRO (MODAL MULTI-PAGO) ---
+        function abrirModalCobroPOS() {
+            const sale = posSales[posIndex];
+            const tot = sale.items.reduce((s,i) => s + i.price, 0);
+            if(tot <= 0) return mostrarNotificacion("Agregá productos primero", true);
+
+            const m = document.getElementById('modal-cobrar-pos');
+            const iE = document.getElementById('inp-cobro-efectivo');
+            const iT = document.getElementById('inp-cobro-transf');
+            const iP = document.getElementById('inp-cobro-posnet');
+            const btnC = document.getElementById('btn-ejecutar-cobro');
+            const remVal = document.getElementById('modal-cobro-val-resto');
+            const remLbl = document.getElementById('modal-cobro-lbl-resto');
+
+            document.getElementById('modal-cobro-total').textContent = `$${formatear(tot)}`;
+            iE.value = ''; iT.value = ''; iP.value = '';
+            
+            if(sale.metodo === 'Transferencia') iT.value = tot;
+            else if(sale.metodo === 'Posnet') iP.value = tot;
+            else iE.value = tot;
+
+            const calcResto = () => {
+                const pago = (parseFloat(iE.value)||0) + (parseFloat(iT.value)||0) + (parseFloat(iP.value)||0);
+                const diff = pago - tot;
+                remVal.textContent = `$${formatear(Math.abs(diff))}`;
+                if(diff < -0.01) {
+                    btnC.disabled = true;
+                    remLbl.textContent = 'FALTA CUBRIR';
+                    remVal.className = 'text-4xl font-black text-red-500';
+                    document.getElementById('seccion-resto-fiado').classList.remove('hidden');
+                } else {
+                    btnC.disabled = false;
+                    remLbl.textContent = 'VUELTO AL CLIENTE';
+                    remVal.className = 'text-4xl font-black text-emerald-500';
+                    document.getElementById('seccion-resto-fiado').classList.add('hidden');
+                }
+            };
+
+            [iE, iT, iP].forEach(inp => inp.addEventListener('input', calcResto));
+            calcResto();
+
+            const selD = document.getElementById('sel-resto-fiado');
+            selD.innerHTML = '<option value="">Elegir cliente para anotar el resto...</option>';
+            deudores.forEach(d => {
+                const o = document.createElement('option'); o.value = d.id; o.textContent = d.name; selD.appendChild(o);
+            });
+            const btnD = document.getElementById('btn-cobro-parcial-fiado');
+            selD.onchange = (e) => { btnD.disabled = !e.target.value; };
+            btnD.disabled = true;
+
+            // Confirmar Pago Total
+            btnC.onclick = async () => {
+                const hoy = getStrDia(new Date());
+                const dataHoy = finanzas[hoy] || { pendingSales: [] };
+                if(!dataHoy.pendingSales) dataHoy.pendingSales = [];
+                
+                let cobradoReal = 0;
+                const metodosUsados = {};
+
+                [{m:'Efectivo', v:iE}, {m:'Transferencia', v:iT}, {m:'Posnet', v:iP}].forEach(x => {
+                    const val = parseFloat(x.v.value) || 0;
+                    if(val > 0) {
+                        dataHoy.pendingSales.push({ id: generarId(), amount: val, paymentMethod: x.m, timestamp: new Date().toISOString() });
+                        cobradoReal += val;
+                        metodosUsados[x.m] = val;
+                    }
+                });
+
+                if(cobradoReal > 0) {
+                    await db.collection("ganancias_diarias").doc(hoy).set(dataHoy);
+                    await db.collection("historial_ventas").doc(generarId()).set({
+                        timestamp: new Date().toISOString(), items: sale.items, totalAmount: cobradoReal, paymentMethods: metodosUsados, type: 'Venta'
+                    });
+                }
+
+                posSales[posIndex] = { items: [], deudorId: '', metodo: 'Efectivo' };
+                guardarCajaLocal(); renderizarPOS();
+                m.classList.add('hidden');
+                mostrarNotificacion(`Venta cerrada: $${formatear(cobradoReal)}`);
+            };
+
+            // Confirmar Pago Parcial + Fiado
+            btnD.onclick = async () => {
+                const dId = selD.value; if(!dId) return;
+                const d = deudores.find(x => x.id === dId); if(!d) return;
+
+                const pagado = (parseFloat(iE.value)||0) + (parseFloat(iT.value)||0) + (parseFloat(iP.value)||0);
+                const resto = tot - pagado;
+
+                if(pagado > 0) {
+                    const hoy = getStrDia(new Date());
+                    const dataHoy = finanzas[hoy] || { pendingSales: [] };
+                    const metodosUsados = {};
+                    [{m:'Efectivo', v:iE}, {m:'Transferencia', v:iT}, {m:'Posnet', v:iP}].forEach(x => {
+                        const val = parseFloat(x.v.value) || 0;
+                        if(val > 0) {
+                            dataHoy.pendingSales.push({ id: generarId(), amount: val, paymentMethod: x.m, timestamp: new Date().toISOString() });
+                            metodosUsados[x.m] = val;
+                        }
+                    });
+                    await db.collection("ganancias_diarias").doc(hoy).set(dataHoy);
+                    await db.collection("historial_ventas").doc(generarId()).set({
+                        timestamp: new Date().toISOString(), items: sale.items, totalAmount: pagado, paymentMethods: metodosUsados, type: 'Pago Parcial', notes: `Se fió $${resto} a ${d.name}`
+                    });
+                }
+
+                const itemAcumulado = d.items.find(x => x.productId === ID_FIADO_ACUMULADO);
+                if(itemAcumulado) itemAcumulado.quantity += resto;
+                else d.items.push({ id: generarId(), productId: ID_FIADO_ACUMULADO, name: 'Fiado Parcial', quantity: resto, type: 'Unidad', addedAt: new Date().toISOString() });
+                
+                await db.collection("fiado").doc(d.id).set(d);
+
+                posSales[posIndex] = { items: [], deudorId: '', metodo: 'Efectivo' };
+                guardarCajaLocal(); renderizarPOS();
+                m.classList.add('hidden');
+                mostrarNotificacion(`Anotado parcial a ${d.name}`);
+            };
+
+            document.getElementById('split-cancel-btn').onclick = () => { m.classList.add('hidden'); [iE, iT, iP].forEach(inp => inp.removeEventListener('input', calcResto)); };
+            m.classList.remove('hidden');
+        }
+
+        function cerrarModalCobroPOS() {
+            document.getElementById('modal-cobrar-pos').classList.add('hidden');
+        }
+
+        async function enviarADeudorPOS() {
+            const sale = posSales[posIndex];
+            const dId = document.getElementById('pos-deudor-select').value;
+            const tot = sale.items.reduce((s,i) => s + i.price, 0);
+
+            if(!dId) return mostrarNotificacion("Elegí un cliente deudor primero", true);
+            if(tot <= 0) return;
+
+            const d = deudores.find(x => x.id === dId); if(!d) return;
+
+            sale.items.forEach(i => d.items.push({ ...i, id: generarId(), addedAt: new Date().toISOString() }));
+            await db.collection("fiado").doc(d.id).set(d);
+
+            await db.collection("historial_ventas").doc(generarId()).set({
+                timestamp: new Date().toISOString(), items: sale.items, totalAmount: tot, paymentMethods: { Deudor: tot }, type: 'Anotado en Cuenta', notes: `Ticket para ${d.name}`
+            });
+
+            posSales[posIndex] = { items: [], deudorId: '', metodo: 'Efectivo' };
+            guardarCajaLocal(); renderizarPOS();
+            mostrarNotificacion(`Ticket anotado a ${d.name}`);
+        }
+
+        // Lector Código Barras Global
+        function setupLectorBarrasGlobal() {
+            let buffer = '';
+            let timer = 0;
+            window.addEventListener('keydown', (e) => {
+                const now = Date.now();
+                if(now - timer > 100) buffer = '';
+                
+                if(e.key === 'Enter' && buffer.length > 3 && e.target.tagName !== 'INPUT') {
+                    const p = inv.find(x => x.barcodes && x.barcodes.includes(buffer));
+                    if(p) {
+                        if(vistaActual() === 'vender') { agregarAlPOS(p.id, 1); mostrarNotificacion(`${p.name} agregado`); }
+                        else if(vistaActual() === 'deudores' && deudorActivoData) {
+                            deudorActivoData.items.push({ id: generarId(), productId: p.id, quantity: 1, type: p.type==='Kilo'?'Peso':'Unidad', addedAt: new Date().toISOString() });
+                            db.collection("fiado").doc(deudorActivoData.id).set(deudorActivoData);
+                            mostrarNotificacion(`${p.name} sumado al fiado`);
+                        } else {
+                            cambiarVista('vender'); setTimeout(() => agregarAlPOS(p.id, 1), 600);
+                        }
+                    } else { mostrarNotificacion("Código no registrado", true); }
+                    buffer = '';
+                } else if(!['Shift','Control','Alt','Meta','Tab'].includes(e.key)) {
+                    buffer += e.key;
+                }
+                timer = now;
+            });
+        }
+
+        // ================= 2. MÓDULO: INVENTARIO =================
+        document.getElementById('product-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = document.getElementById('product-id').value;
+            const pr = parseFloat(document.getElementById('product-price').value);
+            if(isNaN(pr) || pr < 0) return mostrarNotificacion("Precio malo", true);
+            
+            const data = {
+                name: document.getElementById('product-name').value,
+                brand: document.getElementById('product-brand').value || '',
+                size: document.getElementById('product-size').value || '',
+                price: redondear(pr),
+                type: document.getElementById('product-type').value,
+                barcodes: [...codigosBarrasTemp]
+            };
+
+            data.id = id || generarId();
+            data.category = id ? (inv.find(x => x.id === id)?.category || 'General') : 'General';
+            
+            db.collection("inventario").doc(data.id).set(data).then(() => {
+                mostrarNotificacion(id ? "Actualizado" : "Guardado");
+                limpiarFormularioProducto();
+            });
+        });
+
+        function agregarCodigoBarras() {
+            const input = document.getElementById('barcode-input');
+            const b = input.value.trim();
+            if(b && !codigosBarrasTemp.includes(b)) { codigosBarrasTemp.push(b); renderizarCodigosTemp(); }
+            input.value = ''; input.focus();
+        }
+        document.getElementById('barcode-input').addEventListener('keydown', e => { if(e.key === 'Enter') { e.preventDefault(); agregarCodigoBarras(); }});
+        
+        function renderizarCodigosTemp() {
+            const list = document.getElementById('barcode-list'); list.innerHTML = '';
+            if(!codigosBarrasTemp.length) return list.innerHTML = '<li class="text-sm text-gray-400 italic">No hay códigos asignados a este producto.</li>';
+            codigosBarrasTemp.forEach(b => {
+                list.innerHTML += `<li class="flex items-center gap-2 text-sm font-bold bg-gray-200 dark:bg-gray-600 px-3 py-1 rounded-full text-gray-800 dark:text-gray-200"><span>${b}</span><button type="button" class="text-red-500 hover:text-red-700" onclick="quitarCodigoTemp('${b}')">X</button></li>`;
+            });
+        }
+        function quitarCodigoTemp(b) { codigosBarrasTemp = codigosBarrasTemp.filter(x => x !== b); renderizarCodigosTemp(); }
+
+        function limpiarFormularioProducto() {
+            document.getElementById('product-form').reset();
+            document.getElementById('product-id').value = '';
+            document.getElementById('product-save-btn').innerText = 'Guardar Producto';
+            codigosBarrasTemp = []; renderizarCodigosTemp();
+        }
+
+        async function aplicarAumentoMasivo() {
+            const pct = parseFloat(document.getElementById('aumento-porcentaje').value);
+            const cat = document.getElementById('aumento-categoria').value;
+            if(isNaN(pct) || pct <= 0) return mostrarNotificacion("Ponele un porcentaje válido", true);
+            
+            const productos = inv.filter(p => p.category === cat);
+            if(!productos.length) return mostrarNotificacion("No hay productos ahí", true);
+
+            if(await preguntarConfirmacion("Aumento Masivo", `¿Seguro querés aumentar un ${pct}% a todos los productos de ${cat}?`)) {
+                const batch = db.batch();
+                productos.forEach(p => {
+                    p.price = redondear(p.price * (1 + pct / 100));
+                    batch.set(db.collection("inventario").doc(p.id), p);
+                });
+                await batch.commit();
+                mostrarNotificacion("Precios actualizados");
+                document.getElementById('aumento-porcentaje').value = '';
+            }
+        }
+
+        function editarInv(id) {
+            const p = inv.find(x => x.id === id); if(!p) return;
+            document.getElementById('product-id').value = p.id;
+            document.getElementById('product-name').value = p.name;
+            document.getElementById('product-brand').value = p.brand || '';
+            document.getElementById('product-size').value = p.size || '';
+            document.getElementById('product-price').value = p.price;
+            document.getElementById('product-type').value = p.type;
+            codigosBarrasTemp = [...(p.barcodes || [])];
+            renderizarCodigosTemp();
+            document.getElementById('product-save-btn').innerText = 'Actualizar Producto';
+            document.getElementById('product-form').scrollIntoView();
+        }
+        async function borrarInv(id) { if(await preguntarConfirmacion("Borrar", "¿Borrar este producto del sistema?")) db.collection("inventario").doc(id).delete(); }
+        async function moverCatInv(id, nCat) { const p = inv.find(x => x.id === id); if(p) { p.category = nCat; await db.collection("inventario").doc(id).set(p); mostrarNotificacion("Movido"); } }
+
+        function renderizarInventario() {
+            const txt = (document.getElementById('inventory-search').value || '').toLowerCase();
+            const gen = document.getElementById('inventory-list-general');
+            
+            // Si dejaste la verdulería oculta en HTML la evitamos, si no, va al listado único
+            const ver = document.getElementById('inventory-list-verduleria');
+            
+            if(gen) gen.innerHTML = ''; 
+            if(ver) ver.innerHTML = '';
+
+            inv.filter(p => p.name.toLowerCase().includes(txt) || (p.brand||'').toLowerCase().includes(txt)).forEach(p => {
+                const li = document.createElement('li');
+                li.className = "flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-200 dark:border-gray-600 shadow-sm mb-2";
+                li.innerHTML = `
+                    <div class="flex-grow pr-2">
+                        <p class="font-bold text-gray-800 dark:text-gray-100 text-lg">${p.name} <span class="text-sm font-medium text-gray-500">(${p.brand||''} ${p.size||''})</span></p>
+                        <p class="text-emerald-600 font-black text-xl">$${formatear(p.price)} <span class="text-sm font-bold text-gray-400">${p.type==='Kilo'?'/kg':''}</span></p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="editarInv('${p.id}')" class="bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-200 font-bold px-4 py-2 rounded-lg transition-colors">E</button>
+                        <button onclick="borrarInv('${p.id}')" class="bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 font-bold px-4 py-2 rounded-lg transition-colors">X</button>
+                    </div>
+                `;
+                if(p.category === 'Verduleria' && ver) ver.appendChild(li); else if(gen) gen.appendChild(li);
+            });
+        }
+
+        // ================= 3. MÓDULO: DEUDORES =================
+        function actualizarSelectsDeudores() {
+            const sd = document.getElementById('pos-deudor-select');
+            if(sd) {
+                const val = sd.value; sd.innerHTML = '<option value="">Seleccionar Deudor...</option>';
+                deudores.forEach(d => { const o = document.createElement('option'); o.value = d.id; o.textContent = d.name; sd.appendChild(o); });
+                sd.value = val;
+            }
+        }
+
+        document.getElementById('add-debtor-form').addEventListener('submit', async e => {
+            e.preventDefault();
+            const n = document.getElementById('nuevo-deudor-nombre').value.trim(); if(!n) return;
+            const id = n.toLowerCase().replace(/\s+/g,'-') + '-' + generarId().slice(0,4);
+            await db.collection("fiado").doc(id).set({ id, name: n, items: [], savedDebts: [], saldoFavor: 0 });
+            document.getElementById('nuevo-deudor-nombre').value = '';
+            mostrarNotificacion("Cliente Agregado");
+        });
+
+        function renderizarListaDeudores() {
+            const txt = (document.getElementById('search-deudores').value || '').toLowerCase();
+            const list = document.getElementById('lista-deudores-ui'); list.innerHTML = '';
+            let granTot = 0;
+
+            deudores.forEach(d => {
+                let dt = 0;
+                d.items.forEach(i => { if(i.productId === ID_FIADO_ACUMULADO) dt += i.quantity; else { const p = inv.find(x => x.id === i.productId); if(p) dt += i.type==='Unidad'?p.price*i.quantity:(p.price/1000)*i.quantity; }});
+                (d.savedDebts||[]).forEach(sd => sd.items.forEach(i => { if(i.productId === ID_FIADO_ACUMULADO) dt += i.quantity; else { const p = inv.find(x => x.id === i.productId); if(p) dt += i.type==='Unidad'?p.price*i.quantity:(p.price/1000)*i.quantity; }}));
+                dt -= (d.saldoFavor || 0);
+                granTot += dt;
+
+                if(d.name.toLowerCase().includes(txt)) {
+                    const li = document.createElement('li');
+                    li.className = `p-4 rounded-xl cursor-pointer border transition-all flex justify-between items-center shadow-sm ${deudorActivoData && deudorActivoData.id === d.id ? 'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-500' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750'}`;
+                    li.innerHTML = `
+                        <span class="font-bold text-gray-800 dark:text-gray-100 text-lg">${d.name}</span>
+                        <div class="flex items-center gap-4">
+                            <span class="text-red-500 font-black text-xl">$${formatear(redondear(dt))}</span>
+                            <button class="bg-red-100 dark:bg-red-900/40 text-red-600 font-bold px-3 py-2 rounded-lg hover:bg-red-200 transition-colors" onclick="borrarCliente(event, '${d.id}')">X</button>
+                        </div>
+                    `;
+                    li.onclick = (e) => { if(e.target.tagName !== 'BUTTON') activarDeudor(d.id); };
+                    list.appendChild(li);
+                }
+            });
+            document.getElementById('total-general-deudores').textContent = `$${formatear(redondear(Math.max(0, granTot)))}`;
+        }
+
+        async function borrarCliente(e, id) {
+            e.stopPropagation();
+            if(await preguntarConfirmacion("Borrar Cliente", "¿Borrar este cliente y toda su deuda definitivamente?")) {
+                await db.collection("fiado").doc(id).delete();
+                if(deudorActivoData && deudorActivoData.id === id) activarDeudor(null);
+            }
+        }
+
+        function activarDeudor(id) {
+            deudorActivoData = id ? deudores.find(x => x.id === id) : null;
+            const panel = document.getElementById('deudor-panel-activo');
+            const ph = document.getElementById('deudor-no-seleccionado');
+            
+            if(deudorActivoData) {
+                document.getElementById('deudor-nombre-titulo').textContent = deudorActivoData.name;
+                renderizarPanelDeudor();
+                panel.classList.remove('hidden'); ph.classList.add('hidden');
+            } else {
+                panel.classList.add('hidden'); ph.classList.remove('hidden');
+            }
+            renderizarListaDeudores();
+            filtrarSelectParaDeudor();
+        }
+
+        async function borrarDeudorActual() {
+            if(!deudorActivoData) return;
+            if(await preguntarConfirmacion("Borrar Cliente", `¿Seguro querés eliminar a ${deudorActivoData.name}?`)) {
+                await db.collection("fiado").doc(deudorActivoData.id).delete();
+                activarDeudor(null);
+            }
+        }
+
+        function filtrarSelectParaDeudor() {
+            const txt = (document.getElementById('deudor-search-prod').value || '').toLowerCase();
+            const sel = document.getElementById('deudor-select-prod');
+            if(!sel) return;
+            const val = sel.value; sel.innerHTML = '<option value="">Seleccione producto...</option>';
+            const f = inv.filter(p => p.name.toLowerCase().includes(txt) || (p.barcodes && p.barcodes.some(b => b.includes(txt))));
+            f.forEach(p => { const o = document.createElement('option'); o.value = p.id; o.dataset.t = p.type; o.textContent = `${p.name} - $${p.price}`; sel.appendChild(o); });
+            if(f.some(p => p.id === val)) sel.value = val; else if(f.length === 1 && txt) sel.value = f[0].id;
+            ajustarQtyDeudor();
+        }
+        function ajustarQtyDeudor() {
+            const o = document.getElementById('deudor-select-prod').selectedOptions[0];
+            document.getElementById('deudor-qty-prod').value = (o && o.dataset.t === 'Kilo') ? 100 : 1;
+        }
+
+        async function anotarItemAlDeudor() {
+            const pid = document.getElementById('deudor-select-prod').value;
+            const q = parseFloat(document.getElementById('deudor-qty-prod').value);
+            if(!pid || isNaN(q) || q <= 0 || !deudorActivoData) return mostrarNotificacion("Datos inválidos", true);
+
+            const p = inv.find(x => x.id === pid); if(!p) return;
+            deudorActivoData.items.push({ id: generarId(), productId: p.id, quantity: q, type: p.type==='Kilo'?'Peso':'Unidad', addedAt: new Date().toISOString() });
+
+            await db.collection("fiado").doc(deudorActivoData.id).set(deudorActivoData);
+            document.getElementById('deudor-select-prod').value = '';
+            document.getElementById('deudor-search-prod').value = '';
+            filtrarSelectParaDeudor();
+            document.getElementById('deudor-search-prod').focus();
+            mostrarNotificacion("Producto Anotado");
+        }
+
+        function renderizarPanelDeudor() {
+            if(!deudorActivoData) return;
+            const t = (document.getElementById('deudor-filtro-ticket')?.value || '').toLowerCase();
+            const list = document.getElementById('deudor-items-list'); list.innerHTML = '';
+            let tot = 0;
+
+            deudorActivoData.items.filter(i => { const p = inv.find(x => x.id === i.productId); return (p ? p.name : i.name||'').toLowerCase().includes(t); }).forEach(it => {
+                const p = inv.find(x => x.id === it.productId);
+                const pr = (it.productId === ID_FIADO_ACUMULADO) ? it.quantity : (p ? (it.type==='Unidad'?p.price*it.quantity:(p.price/1000)*it.quantity) : 0);
+                tot += pr;
+                list.innerHTML += `
+                    <li class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm mb-2">
+                        <span class="font-bold text-gray-700 dark:text-gray-200 text-lg">${it.productId === ID_FIADO_ACUMULADO ? '' : `${it.quantity}${it.type==='Unidad'?'x':'gr'} `}${p ? p.name : it.name||'Eliminado'}</span>
+                        <div class="flex items-center gap-4">
+                            <span class="text-red-500 font-black text-xl">$${formatear(redondear(pr))}</span>
+                            <button class="bg-red-100 dark:bg-red-900/30 text-red-500 font-bold px-3 py-1 rounded hover:bg-red-200 transition-colors" onclick="quitarItemFiado('${it.id}')">X</button>
+                        </div>
+                    </li>
+                `;
+            });
+
+            if(!deudorActivoData.items.length) list.innerHTML = '<li class="text-center text-gray-400 py-6 font-medium">Ticket principal vacío.</li>';
+
+            // Saldo a Favor
+            const sfC = document.getElementById('deudor-saldo-favor-div');
+            if(deudorActivoData.saldoFavor > 0) {
+                sfC.classList.remove('hidden');
+                document.getElementById('deudor-saldo-favor-val').textContent = `-$${formatear(deudorActivoData.saldoFavor)}`;
+                tot -= deudorActivoData.saldoFavor;
+            } else { sfC.classList.add('hidden'); }
+
+            document.getElementById('deudor-total-deuda').textContent = `$${formatear(redondear(Math.max(0, tot)))}`;
+
+            // Históricos
+            const hl = document.getElementById('saved-debts-section'); hl.innerHTML = '';
+            (deudorActivoData.savedDebts || []).forEach(sd => {
+                let st = 0;
+                sd.items.forEach(i => { if(i.productId === ID_FIADO_ACUMULADO) st += i.quantity; else { const p = inv.find(x => x.id === i.productId); if(p) st += i.type==='Unidad'?p.price*i.quantity:(p.price/1000)*i.quantity; }});
+                hl.innerHTML += `
+                    <div class="bg-orange-50 dark:bg-orange-900/10 p-5 rounded-xl border border-orange-200 dark:border-orange-800 flex justify-between items-center shadow-sm">
+                        <span class="font-bold text-orange-700 dark:text-orange-400 text-lg">${sd.name}</span>
+                        <div class="flex items-center gap-4">
+                            <span class="font-black text-red-500 text-2xl">$${formatear(redondear(st))}</span>
+                            <button class="bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2 rounded-lg transition-colors" onclick="pagarHistoricoFiado('${sd.id}')">Abonar</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        async function quitarItemFiado(id) {
+            if(!deudorActivoData) return;
+            deudorActivoData.items = deudorActivoData.items.filter(x => x.id !== id);
+            await db.collection("fiado").doc(deudorActivoData.id).set(deudorActivoData);
+        }
+
+        async function borrarSaldoAFavor() {
+            if(await preguntarConfirmacion("Borrar", "¿Borrar saldo a favor?")) {
+                deudorActivoData.saldoFavor = 0;
+                await db.collection("fiado").doc(deudorActivoData.id).set(deudorActivoData);
+            }
+        }
+
+        async function archivarDeudaHistorica() {
+            if(!deudorActivoData || !deudorActivoData.items.length) return mostrarNotificacion("Nada que archivar", true);
+            if(!deudorActivoData.savedDebts) deudorActivoData.savedDebts = [];
+            deudorActivoData.savedDebts.push({ id: generarId(), name: `Ticket del ${new Date().toLocaleDateString('es-AR')}`, items: [...deudorActivoData.items], saldoFavor: 0 });
+            deudorActivoData.items = [];
+            await db.collection("fiado").doc(deudorActivoData.id).set(deudorActivoData);
+            mostrarNotificacion("Deuda Archivada");
+        }
+
+        // --- PAGO DEUDORES ---
+        function setMetodoPayDeudor(m) {
+            metodoPagoDeudorModal = m;
+            document.querySelectorAll('.mdpay-btn').forEach(b => {
+                if(b.dataset.method === m) { b.classList.add('metodo-activo', 'border-emerald-500'); b.classList.remove('metodo-inactivo', 'border-gray-300', 'text-gray-500'); }
+                else { b.classList.remove('metodo-activo', 'border-emerald-500'); b.classList.add('metodo-inactivo', 'border-gray-300', 'text-gray-500'); }
+            });
+        }
+
+        function abrirModalPagoDeudor() {
+            if(!deudorActivoData) return;
+            let tot = 0; deudorActivoData.items.forEach(i => { if(i.productId === ID_FIADO_ACUMULADO) tot += i.quantity; else { const p = inv.find(x => x.id === i.productId); if(p) tot += i.type==='Unidad'?p.price*i.quantity:(p.price/1000)*i.quantity; }});
+            tot -= (deudorActivoData.saldoFavor || 0); tot = redondear(Math.max(0, tot));
+            if(tot <= 0) return mostrarNotificacion("No hay deuda", true);
+
+            idDeudaGuardadaPagando = null;
+            document.getElementById('mdpay-total-deuda').textContent = `$${formatear(tot)}`;
+            document.getElementById('mdpay-monto-input').value = tot;
+            setMetodoPayDeudor('Efectivo');
+            
+            document.getElementById('modal-pago-deudor').classList.remove('hidden');
+        }
+
+        function pagarHistoricoFiado(id) {
+            if(!deudorActivoData) return;
+            const idx = deudorActivoData.savedDebts.findIndex(x => x.id === id); if(idx === -1) return;
+            let tot = 0; deudorActivoData.savedDebts[idx].items.forEach(i => { if(i.productId === ID_FIADO_ACUMULADO) tot += i.quantity; else { const p = inv.find(x => x.id === i.productId); if(p) tot += i.type==='Unidad'?p.price*i.quantity:(p.price/1000)*i.quantity; }});
+            tot -= (deudorActivoData.savedDebts[idx].saldoFavor || 0); tot = redondear(Math.max(0, tot));
+
+            idDeudaGuardadaPagando = id;
+            document.getElementById('mdpay-total-deuda').textContent = `$${formatear(tot)}`;
+            document.getElementById('mdpay-monto-input').value = tot;
+            setMetodoPayDeudor('Efectivo');
+            
+            document.getElementById('modal-pago-deudor').classList.remove('hidden');
+        }
+
+        function cerrarModalPagoDeudor() { document.getElementById('modal-pago-deudor').classList.add('hidden'); }
+
+        document.getElementById('mdpay-btn-confirmar').addEventListener('click', async () => {
+            const amt = parseFloat(document.getElementById('mdpay-monto-input').value);
+            if(isNaN(amt) || amt <= 0) return mostrarNotificacion("Monto inválido", true);
+
+            const hoy = getStrDia(new Date());
+            const dataHoy = finanzas[hoy] || {};
+            if(!dataHoy.debtorPayments) dataHoy.debtorPayments = [];
+            dataHoy.debtorPayments.push({ id: generarId(), amount: amt, paymentMethod: metodoPagoDeudorModal, timestamp: new Date().toISOString() });
+            
+            await db.collection("ganancias_diarias").doc(hoy).set(dataHoy);
+
+            if(idDeudaGuardadaPagando) {
+                const idx = deudorActivoData.savedDebts.findIndex(x => x.id === idDeudaGuardadaPagando);
+                if(idx !== -1) {
+                    let tot = 0; deudorActivoData.savedDebts[idx].items.forEach(i => { if(i.productId === ID_FIADO_ACUMULADO) tot += i.quantity; else { const p = inv.find(x => x.id === i.productId); if(p) tot += i.type==='Unidad'?p.price*i.quantity:(p.price/1000)*i.quantity; }});
+                    deudorActivoData.savedDebts.splice(idx, 1);
+                    deudorActivoData.saldoFavor = (deudorActivoData.saldoFavor || 0) + Math.max(0, amt - tot);
+                }
+            } else {
+                let tot = 0; deudorActivoData.items.forEach(i => { if(i.productId === ID_FIADO_ACUMULADO) tot += i.quantity; else { const p = inv.find(x => x.id === i.productId); if(p) tot += i.type==='Unidad'?p.price*i.quantity:(p.price/1000)*i.quantity; }});
+                deudorActivoData.items = [];
+                deudorActivoData.saldoFavor = Math.max(0, amt - tot);
+            }
+
+            await db.collection("fiado").doc(deudorActivoData.id).set(deudorActivoData);
+            cerrarModalPagoDeudor();
+            mostrarNotificacion("Pago Registrado");
+        });
+
+        // ================= 4. MÓDULO: CIERRE DE CAJA =================
+        function renderizarCierreCaja() {
+            const hoy = getStrDia(new Date());
+            const p = finanzas[hoy]?.pendingSales || [];
+            
+            let tE=0, tT=0, tP=0;
+            const uE = document.getElementById('cierre-list-efectivo'); uE.innerHTML = '';
+            const uT = document.getElementById('cierre-list-transferencia'); uT.innerHTML = '';
+            const uP = document.getElementById('cierre-list-posnet'); uP.innerHTML = '';
+
+            p.forEach(s => {
+                const li = `<li class="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700"><span class="font-bold text-lg text-gray-800 dark:text-gray-200">$${formatear(s.amount)}</span><button class="text-red-500 font-bold px-3 py-1 bg-red-100 dark:bg-red-900/30 rounded hover:bg-red-200 transition-colors" onclick="borrarVentaCierre('${s.id}')">X</button></li>`;
+                if(s.paymentMethod === 'Efectivo') { tE += s.amount; uE.innerHTML += li; }
+                else if(s.paymentMethod === 'Transferencia') { tT += s.amount; uT.innerHTML += li; }
+                else { tP += s.amount; uP.innerHTML += li; }
+            });
+
+            document.getElementById('cierre-subtotal-efectivo').textContent = `$${formatear(tE)}`;
+            document.getElementById('cierre-subtotal-transferencia').textContent = `$${formatear(tT)}`;
+            document.getElementById('cierre-bruto-posnet').textContent = `$${formatear(tP)}`;
+            document.getElementById('cierre-dcto-posnet').textContent = `-$${formatear(redondear(tP * 0.04))}`;
+            document.getElementById('cierre-neto-posnet').textContent = `$${formatear(redondear(tP * 0.96))}`;
+            document.getElementById('cierre-gran-total').textContent = `$${formatear(tE + tT + redondear(tP * 0.96))}`;
+        }
+
+        async function borrarVentaCierre(id) {
+            if(await preguntarConfirmacion("Borrar", "¿Borrar esta venta del cierre? (No se recupera)")) {
+                const hoy = getStrDia(new Date());
+                finanzas[hoy].pendingSales = finanzas[hoy].pendingSales.filter(x => x.id !== id);
+                await db.collection("ganancias_diarias").doc(hoy).set(finanzas[hoy]);
+            }
+        }
+
+        async function ejecutarCierreCaja(turno, esAutomatico = false) {
+            const hoy = getStrDia(new Date());
+            const p = finanzas[hoy]?.pendingSales || [];
+            if(!p.length) {
+                if(!esAutomatico) mostrarNotificacion("No hay ventas en la caja operativa", true);
+                return;
+            }
+
+            if(!finanzas[hoy][turno]) finanzas[hoy][turno] = { total: 0, Efectivo: 0, Transferencia: 0, Posnet: 0 };
+            
+            let total = 0;
+            p.forEach(s => {
+                let a = s.amount;
+                if(s.paymentMethod === 'Posnet') a = redondear(a * 0.96);
+                total += a;
+                finanzas[hoy][turno][s.paymentMethod] += a;
+            });
+
+            finanzas[hoy][turno].total += total;
+            finanzas[hoy].pendingSales = []; // Vaciar
+            
+            await db.collection("ganancias_diarias").doc(hoy).set(finanzas[hoy]);
+            if(esAutomatico) {
+                mostrarNotificacion(`Cierre automático 21:00hs: $${formatear(total)} a la Tarde`);
+            } else {
+                mostrarNotificacion(`Caja ${turno.toUpperCase()} cerrada con éxito ($${formatear(total)})`);
+            }
+        }
+
+        // ================= 5. MÓDULO: FINANZAS =================
+        function setupFinanzas() {
+            document.getElementById('form-gastos').addEventListener('submit', async e => {
+                e.preventDefault();
+                const d = document.getElementById('gasto-fecha').value;
+                const desc = document.getElementById('gasto-desc').value;
+                const m = parseFloat(document.getElementById('gasto-monto').value);
+                if(!d || !desc || isNaN(m) || m <= 0) return;
+
+                if(!gastos[d]) gastos[d] = [];
+                gastos[d].push({ id: generarId(), description: desc, amount: m });
+                
+                await db.collection("gastos").doc(d).set({ items: gastos[d] });
+                document.getElementById('gasto-desc').value = '';
+                document.getElementById('gasto-monto').value = '';
+                mostrarNotificacion("Gasto Anotado");
+            });
+        }
+
+        function navegarMesFinanzas(delta) {
+            fechaFiltroFinanzas.setMonth(fechaFiltroFinanzas.getMonth() + delta);
+            renderizarFinanzas();
+        }
+
+        function renderizarFinanzas() {
+            const ym = getStrMes(fechaFiltroFinanzas);
+            document.getElementById('finanzas-mes-label').textContent = ym;
+
+            let tE = 0, tS = 0, tD = 0;
+            const lg = document.getElementById('fin-list-gastos'), li = document.getElementById('fin-list-ingresos');
+            lg.innerHTML = ''; li.innerHTML = '';
+
+            // Gastos
+            Object.keys(gastos).filter(k => k.startsWith(ym)).sort().reverse().forEach(k => {
+                gastos[k].forEach(g => {
+                    tE += g.amount;
+                    lg.innerHTML += `<li class="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 py-3"><span class="font-bold text-gray-700 dark:text-gray-200">${k.slice(-2)} - ${g.description}</span><div class="flex items-center gap-3"><span class="font-black text-red-500 text-lg">-$${formatear(g.amount)}</span><button class="bg-red-100 dark:bg-red-900/30 text-red-600 font-bold px-2 py-1 rounded" onclick="borrarGastoFinanzas('${k}', '${g.id}')">X</button></div></li>`;
+                });
+            });
+
+            // Ingresos
+            Object.keys(finanzas).filter(k => k.startsWith(ym)).sort().reverse().forEach(k => {
+                const e = finanzas[k];
+                const s = (e.manana?.total||0) + (e.tarde?.total||0);
+                const d = (e.debtorPayments||[]).reduce((a,b)=>a+b.amount,0);
+                const tot = s + d;
+                tS += s; tD += d;
+                if(tot > 0) li.innerHTML += `<li class="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 py-3"><span class="font-bold text-gray-700 dark:text-gray-200 text-lg">Día ${k.slice(-2)}</span><div class="flex items-center gap-3"><span class="font-black text-emerald-600 text-xl">+$${formatear(tot)}</span><button class="bg-red-100 dark:bg-red-900/30 text-red-600 font-bold px-2 py-1 rounded" onclick="borrarGananciaFinanzas('${k}')">X</button></div></li>`;
+            });
+
+            document.getElementById('fin-tot-gastos').textContent = `-$${formatear(tE)}`;
+            document.getElementById('fin-tot-ventas').textContent = `$${formatear(tS)}`;
+            document.getElementById('fin-tot-fiados').textContent = `$${formatear(tD)}`;
+            document.getElementById('fin-tot-neto').textContent = `$${formatear(tS + tD - tE)}`;
+
+            // Gráfico
+            const ctx = document.getElementById('finanzas-grafico').getContext('2d');
+            if(chartFinanzas) chartFinanzas.destroy();
+            const isDark = document.documentElement.classList.contains('dark');
+            const cCol = isDark ? '#FFF' : '#333';
+            
+            if(tS > 0 || tD > 0 || tE > 0) {
+                chartFinanzas = new Chart(ctx, {
+                    type: 'bar',
+                    data: { labels: ['Ventas', 'Fiados Cob.', 'Gastos'], datasets: [{ label: '$', data: [tS, tD, tE], backgroundColor: ['#10B981', '#3B82F6', '#EF4444'], borderRadius: 6 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: cCol } }, y: { ticks: { color: cCol } } } }
+                });
+            } else {
+                ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
+                ctx.fillStyle = cCol; ctx.textAlign = 'center'; ctx.font = 'bold 18px Inter';
+                ctx.fillText('Sin movimientos este mes', ctx.canvas.width/2, ctx.canvas.height/2);
+            }
+        }
+
+        async function borrarGastoFinanzas(fecha, id) {
+            if(await preguntarConfirmacion("Borrar", "¿Eliminar este gasto?")) {
+                gastos[fecha] = gastos[fecha].filter(x => x.id !== id);
+                if(gastos[fecha].length === 0) await db.collection("gastos").doc(fecha).delete();
+                else await db.collection("gastos").doc(fecha).set({ items: gastos[fecha] });
+            }
+        }
+        async function borrarGananciaFinanzas(fecha) {
+            if(await preguntarConfirmacion("¡Peligro!", `¿Eliminar TODOS los ingresos (Cierres y Pagos de Fiados) del día ${fecha}?`)) {
+                await db.collection("ganancias_diarias").doc(fecha).delete();
+            }
+        }
+
+        // ================= 6. MÓDULO: HISTORIAL =================
+        function cambiarAnoHistorial(delta) {
+            currentHistYear += delta;
+            document.getElementById('historial-ano-label').textContent = currentHistYear;
+            if (currentHistYear !== new Date().getFullYear()) {
+                cambiarFiltroHistorial('year', document.getElementById('btn-hist-year'));
+            } else {
+                renderizarHistorial();
+            }
+        }
+
+        function cambiarFiltroHistorial(f, btn) {
+            histFiltro = f;
+            document.querySelectorAll('.hist-btn').forEach(b => {
+                b.classList.remove('bg-emerald-100', 'dark:bg-emerald-900', 'text-emerald-700', 'dark:text-emerald-100', 'font-black', 'shadow-sm');
+                b.classList.add('text-gray-500', 'dark:text-gray-400', 'hover:bg-gray-100', 'dark:hover:bg-gray-700', 'font-bold');
+            });
+            btn.classList.add('bg-emerald-100', 'dark:bg-emerald-900', 'text-emerald-700', 'dark:text-emerald-100', 'font-black', 'shadow-sm');
+            btn.classList.remove('text-gray-500', 'dark:text-gray-400', 'hover:bg-gray-100', 'dark:hover:bg-gray-700', 'font-bold');
+            
+            if (f !== 'year' && currentHistYear !== new Date().getFullYear()) {
+                currentHistYear = new Date().getFullYear();
+                document.getElementById('historial-ano-label').textContent = currentHistYear;
+            }
+
+            renderizarHistorial();
+        }
+
+        function renderizarHistorial() {
+            document.getElementById('historial-ano-label').textContent = currentHistYear;
+            const list = document.getElementById('historial-lista');
+            list.innerHTML = '';
+            
+            const n = new Date();
+            const t = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+            let dayOfWeekN = t.getDay() === 0 ? 7 : t.getDay();
+            const sw = new Date(t); sw.setDate(t.getDate() - dayOfWeekN + 1);
+            const sm = new Date(n.getFullYear(), n.getMonth(), 1);
+
+            const filtrado = historial.filter(s => {
+                const d = new Date(s.timestamp);
+                if (d.getFullYear() !== currentHistYear) return false;
+
+                if(histFiltro === 'year') return true;
+                if(histFiltro === 'month') return d >= sm;
+                if(histFiltro === 'week') return d >= sw;
+                return d >= t; 
+            });
+
+            if(!filtrado.length) {
+                return list.innerHTML = '<div class="text-center text-gray-500 py-10 font-bold text-lg">No hay operaciones en este período.</div>';
+            }
+
+            const hierarchy = {};
+
+            filtrado.forEach(sale => {
+                const d = new Date(sale.timestamp);
+                const year = d.getFullYear();
+                const monthNum = String(d.getMonth() + 1).padStart(2, '0');
+                const monthName = d.toLocaleDateString('es-AR', { month: 'long' });
+                const monthLabel = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+                const monthKey = `${year}-${monthNum}-${monthLabel}`;
+
+                const dayOfWeek = d.getDay() === 0 ? 7 : d.getDay(); 
+                const startOfWeek = new Date(d); startOfWeek.setDate(d.getDate() - dayOfWeek + 1);
+                const endOfWeek = new Date(d); endOfWeek.setDate(d.getDate() + (7 - dayOfWeek));
+                
+                const weekKey = startOfWeek.toISOString().split('T')[0]; 
+                const weekLabel = `Semana del ${startOfWeek.getDate()} al ${endOfWeek.getDate()}`;
+
+                const dayKey = d.toISOString().split('T')[0];
+                const dayLabel = d.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'short' });
+                const dayLabelCap = dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1);
+
+                if (!hierarchy[year]) hierarchy[year] = { label: year, total: 0, months: {} };
+                hierarchy[year].total += sale.totalAmount;
+
+                if (!hierarchy[year].months[monthKey]) hierarchy[year].months[monthKey] = { label: monthLabel, total: 0, weeks: {} };
+                hierarchy[year].months[monthKey].total += sale.totalAmount;
+
+                if (!hierarchy[year].months[monthKey].weeks[weekKey]) hierarchy[year].months[monthKey].weeks[weekKey] = { label: weekLabel, total: 0, days: {} };
+                hierarchy[year].months[monthKey].weeks[weekKey].total += sale.totalAmount;
+
+                if (!hierarchy[year].months[monthKey].weeks[weekKey].days[dayKey]) hierarchy[year].months[monthKey].weeks[weekKey].days[dayKey] = { label: dayLabelCap, total: 0, sales: [] };
+                hierarchy[year].months[monthKey].weeks[weekKey].days[dayKey].total += sale.totalAmount;
+                
+                hierarchy[year].months[monthKey].weeks[weekKey].days[dayKey].sales.push(sale);
+            });
+
+            const createAccordion = (label, total, contentHtml, level) => {
+                const bgColors = ['bg-emerald-50 dark:bg-emerald-900/20', 'bg-gray-100 dark:bg-gray-800', 'bg-gray-50 dark:bg-gray-700/50', 'bg-transparent'];
+                const titleColors = ['text-emerald-700 dark:text-emerald-400', 'text-gray-800 dark:text-gray-200', 'text-gray-700 dark:text-gray-300', 'text-gray-600 dark:text-gray-400'];
+                const textSize = level === 0 ? 'text-xl' : level === 1 ? 'text-lg' : 'text-base';
+                
+                let openAttr = '';
+                if(level === 3) openAttr = 'open'; 
+                if(histFiltro === 'month' && level >= 2) openAttr = 'open';
+                if(histFiltro === 'week') openAttr = 'open';
+
+                return `
+                    <details class="${bgColors[Math.min(level, 3)]} p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 outline-none mb-3 transition-all" ${openAttr}>
+                        <summary class="flex justify-between font-bold cursor-pointer outline-none items-center list-none">
+                            <div class="flex items-center gap-3">
+                                <span class="arrow text-gray-400 transform transition-transform text-xs">▼</span>
+                                <span class="${titleColors[Math.min(level, 3)]} ${textSize}">${label}</span>
+                            </div>
+                            <span class="text-emerald-600 dark:text-emerald-400 font-black ${textSize}">$${formatear(total)}</span>
+                        </summary>
+                        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600 space-y-2">
+                            ${contentHtml}
+                        </div>
+                    </details>
+                `;
+            };
+
+            let finalHTML = '';
+
+            Object.keys(hierarchy).sort().reverse().forEach(year => {
+                let yearHTML = '';
+                const yData = hierarchy[year];
+                
+                Object.keys(yData.months).sort().reverse().forEach(month => {
+                    let monthHTML = '';
+                    const mData = yData.months[month];
+                    
+                    Object.keys(mData.weeks).sort().reverse().forEach(week => {
+                        let weekHTML = '';
+                        const wData = mData.weeks[week];
+                        
+                        Object.keys(wData.days).sort().reverse().forEach(day => {
+                            let dayHTML = '';
+                            const dData = wData.days[day];
+                            
+                            dData.sales.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).forEach(s => {
+                                const lis = (s.items||[]).map(i => `<li>${i.quantity}${i.type==='Unidad'?'x':'gr'} ${i.name}</li>`).join('');
+                                const meths = Object.entries(s.paymentMethods||{}).map(([m,a]) => `<span class="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded text-xs font-bold border border-gray-300 dark:border-gray-600 shadow-sm">${m}: $${formatear(a)}</span>`).join(' ');
+                                
+                                dayHTML += `
+                                    <div class="bg-white dark:bg-gray-900 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 mb-2">
+                                        <div class="flex justify-between font-bold items-center mb-3">
+                                            <div class="flex items-center gap-3">
+                                                <span class="bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-100 px-3 py-1 rounded-lg text-sm border border-emerald-200 dark:border-emerald-700">${new Date(s.timestamp).toLocaleTimeString().slice(0,5)}hs</span>
+                                                <span class="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-3 py-1 rounded-lg text-sm border border-gray-200 dark:border-gray-600 shadow-sm">${s.type || 'Venta'}</span>
+                                            </div>
+                                            <span class="text-emerald-600 dark:text-emerald-400 text-xl font-black">$${formatear(s.totalAmount)}</span>
+                                        </div>
+                                        <div class="text-gray-700 dark:text-gray-300 text-sm">
+                                            <div class="mb-3 flex gap-2 flex-wrap">${meths}</div>
+                                            <ul class="list-disc pl-5 space-y-1 font-medium text-gray-500 dark:text-gray-400">${lis}</ul>
+                                            ${s.notes ? `<p class="mt-4 text-indigo-700 dark:text-indigo-300 font-bold bg-indigo-50 dark:bg-indigo-900/30 p-3 rounded-lg border border-indigo-100 dark:border-indigo-800">${s.notes}</p>` : ''}
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                            
+                            if(histFiltro === 'today') weekHTML += dayHTML; 
+                            else weekHTML += createAccordion(dData.label, dData.total, dayHTML, 3);
+                        });
+                        
+                        if(histFiltro === 'today' || histFiltro === 'week') monthHTML += weekHTML; 
+                        else monthHTML += createAccordion(wData.label, wData.total, weekHTML, 2);
+                    });
+                    
+                    if(histFiltro === 'today' || histFiltro === 'week' || histFiltro === 'month') yearHTML += monthHTML;
+                    else yearHTML += createAccordion(mData.label, mData.total, monthHTML, 1);
+                });
+                
+                if(histFiltro === 'today' || histFiltro === 'week' || histFiltro === 'month') finalHTML += yearHTML;
+                else finalHTML += createAccordion(yData.label, yData.total, yearHTML, 0);
+            });
+
+            list.innerHTML = finalHTML;
+            
+            document.querySelectorAll('#historial-lista details').forEach(detail => {
+                detail.addEventListener('toggle', (e) => {
+                    const arrow = e.target.querySelector('.arrow');
+                    if(arrow) arrow.style.transform = e.target.open ? 'rotate(90deg)' : 'rotate(0deg)';
+                });
+                const arrow = detail.querySelector('.arrow');
+                if(arrow && detail.open) arrow.style.transform = 'rotate(90deg)';
+            });
+        }
+
+    </script>
+</body>
+</html>
