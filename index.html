@@ -692,7 +692,7 @@
                 if(vistaActual() === 'finanzas') renderizarFinanzas();
                 checkAutoCierreCaja(); 
             });
-            db.collection("historial_ventas").orderBy("timestamp", "desc").limit(500).onSnapshot(snap => {
+            db.collection("historial_ventas").orderBy("timestamp", "desc").limit(5000).onSnapshot(snap => {
                 historial = []; snap.forEach(d => historial.push({ id: d.id, ...d.data() }));
                 if(vistaActual() === 'historial') renderizarHistorial();
             });
@@ -1287,18 +1287,67 @@
             const list = document.getElementById('deudor-items-list'); list.innerHTML = '';
             let tot = 0;
 
-            deudorActivoData.items.filter(i => { const p = inv.find(x => x.id === i.productId); return (p ? p.name : i.name||'').toLowerCase().includes(t); }).forEach(it => {
-                const p = inv.find(x => x.id === it.productId);
-                const pr = (it.productId === ID_FIADO_ACUMULADO) ? it.quantity : (p ? (it.type==='Unidad'?p.price*it.quantity:(p.price/1000)*it.quantity) : 0);
-                tot += pr;
+            // 1. Agrupar ítems por fecha (día)
+            const gruposPorFecha = {};
+
+            deudorActivoData.items.filter(i => {
+                const p = inv.find(x => x.id === i.productId);
+                return (p ? p.name : i.name||'').toLowerCase().includes(t);
+            }).forEach(it => {
+                const d = it.addedAt ? new Date(it.addedAt) : new Date();
+                const fechaStr = d.toLocaleDateString('es-AR'); 
+
+                if(!gruposPorFecha[fechaStr]) gruposPorFecha[fechaStr] = [];
+                gruposPorFecha[fechaStr].push(it);
+            });
+
+            // 2. Ordenar fechas para que el día más reciente salga arriba
+            const fechasOrdenadas = Object.keys(gruposPorFecha).sort((a,b) => {
+                const [d1, m1, y1] = a.split('/');
+                const [d2, m2, y2] = b.split('/');
+                return new Date(y2, m2-1, d2) - new Date(y1, m1-1, d1); 
+            });
+
+            // 3. Renderizar las "carpetitas" (details)
+            fechasOrdenadas.forEach(fecha => {
+                let itemsHtml = '';
+                let totalGrupo = 0;
+
+                // Ordenar los productos de ese día por hora
+                gruposPorFecha[fecha].sort((a,b) => new Date(b.addedAt) - new Date(a.addedAt)).forEach(it => {
+                    const p = inv.find(x => x.id === it.productId);
+                    const pr = (it.productId === ID_FIADO_ACUMULADO) ? it.quantity : (p ? (it.type==='Unidad'?p.price*it.quantity:(p.price/1000)*it.quantity) : 0);
+                    tot += pr;
+                    totalGrupo += pr;
+
+                    const hora = it.addedAt ? new Date(it.addedAt).toLocaleTimeString('es-AR').slice(0,5) : '';
+
+                    itemsHtml += `
+                        <li class="flex justify-between items-center bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm mb-1">
+                            <div class="flex items-center gap-2">
+                                <span class="bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-xs font-bold px-2 py-1 rounded">${hora}hs</span>
+                                <span class="font-bold text-gray-700 dark:text-gray-200 text-sm md:text-base">${it.productId === ID_FIADO_ACUMULADO ? '' : `${it.quantity}${it.type==='Unidad'?'x':'gr'} `}${p ? p.name : it.name||'Eliminado'}</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="text-red-500 font-black">$${formatear(redondear(pr))}</span>
+                                <button class="bg-red-100 dark:bg-red-900/30 text-red-500 font-bold px-2 py-1 rounded hover:bg-red-200 transition-colors text-sm" onclick="quitarItemFiado('${it.id}')">X</button>
+                            </div>
+                        </li>
+                    `;
+                });
+
                 list.innerHTML += `
-                    <li class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm mb-2">
-                        <span class="font-bold text-gray-700 dark:text-gray-200 text-lg">${it.productId === ID_FIADO_ACUMULADO ? '' : `${it.quantity}${it.type==='Unidad'?'x':'gr'} `}${p ? p.name : it.name||'Eliminado'}</span>
-                        <div class="flex items-center gap-4">
-                            <span class="text-red-500 font-black text-xl">$${formatear(redondear(pr))}</span>
-                            <button class="bg-red-100 dark:bg-red-900/30 text-red-500 font-bold px-3 py-1 rounded hover:bg-red-200 transition-colors" onclick="quitarItemFiado('${it.id}')">X</button>
-                        </div>
-                    </li>
+                    <details class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded-xl border border-gray-200 dark:border-gray-600 mb-3" open>
+                        <summary class="flex justify-between items-center font-bold cursor-pointer outline-none p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg" style="list-style: none;">
+                            <div class="flex items-center gap-2">
+                                <span class="text-emerald-600 dark:text-emerald-400 text-lg">📅 ${fecha}</span>
+                            </div>
+                            <span class="text-red-600 dark:text-red-400 font-black text-lg">$${formatear(redondear(totalGrupo))}</span>
+                        </summary>
+                        <ul class="mt-3 pl-2 border-l-4 border-emerald-200 dark:border-emerald-700/50 space-y-1">
+                            ${itemsHtml}
+                        </ul>
+                    </details>
                 `;
             });
 
@@ -1315,20 +1364,23 @@
             document.getElementById('deudor-total-deuda').textContent = `$${formatear(redondear(Math.max(0, tot)))}`;
 
             // Históricos
-            const hl = document.getElementById('saved-debts-section'); hl.innerHTML = '';
-            (deudorActivoData.savedDebts || []).forEach(sd => {
-                let st = 0;
-                sd.items.forEach(i => { if(i.productId === ID_FIADO_ACUMULADO) st += i.quantity; else { const p = inv.find(x => x.id === i.productId); if(p) st += i.type==='Unidad'?p.price*i.quantity:(p.price/1000)*i.quantity; }});
-                hl.innerHTML += `
-                    <div class="bg-orange-50 dark:bg-orange-900/10 p-5 rounded-xl border border-orange-200 dark:border-orange-800 flex justify-between items-center shadow-sm">
-                        <span class="font-bold text-orange-700 dark:text-orange-400 text-lg">${sd.name}</span>
-                        <div class="flex items-center gap-4">
-                            <span class="font-black text-red-500 text-2xl">$${formatear(redondear(st))}</span>
-                            <button class="bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2 rounded-lg transition-colors" onclick="pagarHistoricoFiado('${sd.id}')">Abonar</button>
+            const hl = document.getElementById('deudor-historicos-list'); 
+            if (hl) {
+                hl.innerHTML = '';
+                (deudorActivoData.savedDebts || []).forEach(sd => {
+                    let st = 0;
+                    sd.items.forEach(i => { if(i.productId === ID_FIADO_ACUMULADO) st += i.quantity; else { const p = inv.find(x => x.id === i.productId); if(p) st += i.type==='Unidad'?p.price*i.quantity:(p.price/1000)*i.quantity; }});
+                    hl.innerHTML += `
+                        <div class="bg-orange-50 dark:bg-orange-900/10 p-5 rounded-xl border border-orange-200 dark:border-orange-800 flex justify-between items-center shadow-sm mb-2">
+                            <span class="font-bold text-orange-700 dark:text-orange-400 text-lg">${sd.name}</span>
+                            <div class="flex items-center gap-4">
+                                <span class="font-black text-red-500 text-2xl">$${formatear(redondear(st))}</span>
+                                <button class="bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2 rounded-lg transition-colors" onclick="pagarHistoricoFiado('${sd.id}')">Abonar</button>
+                            </div>
                         </div>
-                    </div>
-                `;
-            });
+                    `;
+                });
+            }
         }
         
         async function quitarItemFiado(id) {
@@ -1404,16 +1456,42 @@
             await db.collection("ganancias_diarias").doc(hoy).set(dataHoy);
 
             if(idDeudaGuardadaPagando) {
+                // Pago sobre una deuda archivada (histórico)
                 const idx = deudorActivoData.savedDebts.findIndex(x => x.id === idDeudaGuardadaPagando);
                 if(idx !== -1) {
-                    let tot = 0; deudorActivoData.savedDebts[idx].items.forEach(i => { if(i.productId === ID_FIADO_ACUMULADO) tot += i.quantity; else { const p = inv.find(x => x.id === i.productId); if(p) tot += i.type==='Unidad'?p.price*i.quantity:(p.price/1000)*i.quantity; }});
-                    deudorActivoData.savedDebts.splice(idx, 1);
-                    deudorActivoData.saldoFavor = (deudorActivoData.saldoFavor || 0) + Math.max(0, amt - tot);
+                    let tot = 0; 
+                    deudorActivoData.savedDebts[idx].items.forEach(i => { 
+                        if(i.productId === ID_FIADO_ACUMULADO) tot += i.quantity; 
+                        else { const p = inv.find(x => x.id === i.productId); if(p) tot += i.type==='Unidad'?p.price*i.quantity:(p.price/1000)*i.quantity; }
+                    });
+                    
+                    if (amt >= tot) {
+                        // Pagó todo el histórico o dejó plata a favor
+                        deudorActivoData.savedDebts.splice(idx, 1);
+                        deudorActivoData.saldoFavor = (deudorActivoData.saldoFavor || 0) + (amt - tot);
+                    } else {
+                        // Pagó solo una parte del histórico
+                        const resto = tot - amt;
+                        deudorActivoData.savedDebts[idx].items = [{ id: generarId(), productId: ID_FIADO_ACUMULADO, name: 'Resto de deuda', quantity: resto, type: 'Unidad', addedAt: new Date().toISOString() }];
+                    }
                 }
             } else {
-                let tot = 0; deudorActivoData.items.forEach(i => { if(i.productId === ID_FIADO_ACUMULADO) tot += i.quantity; else { const p = inv.find(x => x.id === i.productId); if(p) tot += i.type==='Unidad'?p.price*i.quantity:(p.price/1000)*i.quantity; }});
-                deudorActivoData.items = [];
-                deudorActivoData.saldoFavor = Math.max(0, amt - tot);
+                // Pago sobre el ticket actual
+                let tot = 0; 
+                deudorActivoData.items.forEach(i => { 
+                    if(i.productId === ID_FIADO_ACUMULADO) tot += i.quantity; 
+                    else { const p = inv.find(x => x.id === i.productId); if(p) tot += i.type==='Unidad'?p.price*i.quantity:(p.price/1000)*i.quantity; }
+                });
+                
+                if (amt >= tot) {
+                    // Pagó todo el ticket o dejó plata a favor
+                    deudorActivoData.items = [];
+                    deudorActivoData.saldoFavor = (deudorActivoData.saldoFavor || 0) + (amt - tot);
+                } else {
+                    // Pagó solo una parte del ticket
+                    const resto = tot - amt;
+                    deudorActivoData.items = [{ id: generarId(), productId: ID_FIADO_ACUMULADO, name: 'Resto de deuda', quantity: resto, type: 'Unidad', addedAt: new Date().toISOString() }];
+                }
             }
 
             await db.collection("fiado").doc(deudorActivoData.id).set(deudorActivoData);
@@ -1523,14 +1601,46 @@
                 });
             });
 
-            // Ingresos
+            // Ingresos (ACTUALIZADO CON DESGLOSE)
             Object.keys(finanzas).filter(k => k.startsWith(ym)).sort().reverse().forEach(k => {
                 const e = finanzas[k];
                 const s = (e.manana?.total||0) + (e.tarde?.total||0);
                 const d = (e.debtorPayments||[]).reduce((a,b)=>a+b.amount,0);
                 const tot = s + d;
                 tS += s; tD += d;
-                if(tot > 0) li.innerHTML += `<li class="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 py-3"><span class="font-bold text-gray-700 dark:text-gray-200 text-lg">Día ${k.slice(-2)}</span><div class="flex items-center gap-3"><span class="font-black text-emerald-600 text-xl">+$${formatear(tot)}</span><button class="bg-red-100 dark:bg-red-900/30 text-red-600 font-bold px-2 py-1 rounded" onclick="borrarGananciaFinanzas('${k}')">X</button></div></li>`;
+
+                // Calcular desglose sumando turnos y fiados
+                let cEft = (e.manana?.Efectivo || 0) + (e.tarde?.Efectivo || 0);
+                let cTra = (e.manana?.Transferencia || 0) + (e.tarde?.Transferencia || 0);
+                let cPos = (e.manana?.Posnet || 0) + (e.tarde?.Posnet || 0);
+                let cFiado = 0;
+
+                (e.debtorPayments || []).forEach(dp => {
+                    cFiado += dp.amount;
+                    if(dp.paymentMethod === 'Efectivo') cEft += dp.amount;
+                    else if(dp.paymentMethod === 'Transferencia') cTra += dp.amount;
+                    else if(dp.paymentMethod === 'Posnet') cPos += dp.amount;
+                    else cEft += dp.amount; // fallback
+                });
+
+                if(tot > 0) {
+                    li.innerHTML += `
+                    <li class="flex flex-col border-b border-gray-200 dark:border-gray-700 py-3 gap-2">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-gray-700 dark:text-gray-200 text-lg">Día ${k.slice(-2)}</span>
+                            <div class="flex items-center gap-3">
+                                <span class="font-black text-emerald-600 text-xl">+$${formatear(tot)}</span>
+                                <button class="bg-red-100 dark:bg-red-900/30 hover:bg-red-200 text-red-600 font-bold px-2 py-1 rounded transition-colors" onclick="borrarGananciaFinanzas('${k}')">X</button>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2 text-sm font-medium mt-1">
+                            ${cEft > 0 ? `<span class="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 px-2 py-1 rounded shadow-sm">💵 Eft: $${formatear(cEft)}</span>` : ''}
+                            ${cTra > 0 ? `<span class="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 px-2 py-1 rounded shadow-sm">📱 Transf: $${formatear(cTra)}</span>` : ''}
+                            ${cPos > 0 ? `<span class="bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-800 px-2 py-1 rounded shadow-sm">💳 Posnet: $${formatear(cPos)}</span>` : ''}
+                            ${cFiado > 0 ? `<span class="bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800 px-2 py-1 rounded shadow-sm">📘 Fiados incl.: $${formatear(cFiado)}</span>` : ''}
+                        </div>
+                    </li>`;
+                }
             });
 
             document.getElementById('fin-tot-gastos').textContent = `-$${formatear(tE)}`;
